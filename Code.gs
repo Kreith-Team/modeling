@@ -1,30 +1,46 @@
+url = "https://script.google.com/macros/s/AKfycbwpGhQZ4_Gu7aHSog4J1ppJfMIj_Pb-JU-sqaqEMOXx3DqgoNA/exec"
+
+/************** TRIGGERS ************
+ * Functions that are triggered by
+ *  on certain events related to the
+ *  document or web app
+************************************/
+
+/* Called when user first opens document */
+function onOpen(e) {
+  buildMenu();
+}
+
+/* Called when user newly installs add-on while doc is already open */
+function onInstall(e) {
+  buildMenu();
+}
+
+/* Called when web app is loaded */
+function doGet(e) {
+  return buildHTML();
+}
+/***********************************/
+
+/********* HTML INTERFACE *********/
+
 function buildHTML() {
-  return HtmlService
-    .createTemplateFromFile('Interface')
-    .evaluate();
+  let template = HtmlService.createTemplateFromFile('Interface');
+  return template.evaluate();
   // return HtmlService.createHtmlOutputFromFile('Interface');
 }
 
-/* Menu Options */
-function onOpen(e) {
+/***********************************/
+
+/***** MENU-RELATED FUNCTIONS *****/
+
+/* Build menu */
+function buildMenu() {
   SpreadsheetApp.getUi()
     .createAddonMenu()
     .addItem('Open sidebar', 'openSidebar')
+    .addItem('Open in new window', 'openWindow')
     .addToUi();
-  /* if (e && e.authMode == ScriptApp.AuthMode.NONE) { // not authorized: can't check properties
-    menu.addItem('Open sidebar', 'serveSidebar');
-  }
-  else { // authorized
-    var properties = PropertiesService.getDocumentProperties();
-    var sidebarOpen = properties.getProperty('sidebar');
-    menu.addItem('Open sidebar', 'serveSidebar');
-    // change menu display based on whether sidebar is open
-  } */
-  // https://developers.google.com/gsuite/add-ons/concepts/menus
-}
-
-function doGet() {
-  return buildHTML();
 }
 
 function openSidebar() {
@@ -32,5 +48,7 @@ function openSidebar() {
   SpreadsheetApp.getUi().showSidebar(html);
 }
 
-function readSpreadsheet() {
+function openWindow() {
+  window.open(url);
 }
+/***********************************/
