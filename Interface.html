@@ -5,7 +5,9 @@
     <base target="_top">
   </head>
   <body>
-    <?!= "<a href = " + url + ">Open window</a>" ?>
+    <? if (!web) { // check if in sidebar mode ?>
+      <?!= "<a href = " + url + " target=\"_blank\">Open window</a>" ?>
+    <? } ?>
     <h1>Modeling App Loaded</h1>
   </body>
 </html>

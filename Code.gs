@@ -1,4 +1,7 @@
-url = "https://script.google.com/macros/s/AKfycbwpGhQZ4_Gu7aHSog4J1ppJfMIj_Pb-JU-sqaqEMOXx3DqgoNA/exec"
+// url = "https://script.google.com/macros/s/AKfycbwpGhQZ4_Gu7aHSog4J1ppJfMIj_Pb-JU-sqaqEMOXx3DqgoNA/exec"
+
+// workaround to avoid "Sorry, unable to open the file at this time." when using 2 accounts - requires UCD auth
+url = "https://script.google.com/a/ucdavis.edu/macros/s/AKfycbwpGhQZ4_Gu7aHSog4J1ppJfMIj_Pb-JU-sqaqEMOXx3DqgoNA/exec"
 
 /************** TRIGGERS ************
  * Functions that are triggered by
@@ -18,16 +21,16 @@ function onInstall(e) {
 
 /* Called when web app is loaded */
 function doGet(e) {
-  return buildHTML();
+  return buildHTML(true);
 }
 /***********************************/
 
 /********* HTML INTERFACE *********/
 
-function buildHTML() {
+function buildHTML(web = false) {
   let template = HtmlService.createTemplateFromFile('Interface');
+  template.web = web;
   return template.evaluate();
-  // return HtmlService.createHtmlOutputFromFile('Interface');
 }
 
 /***********************************/
@@ -39,16 +42,15 @@ function buildMenu() {
   SpreadsheetApp.getUi()
     .createAddonMenu()
     .addItem('Open sidebar', 'openSidebar')
-    .addItem('Open in new window', 'openWindow')
     .addToUi();
 }
 
 function openSidebar() {
-  let html = buildHTML();
+  let html = buildHTML(false);
   SpreadsheetApp.getUi().showSidebar(html);
 }
 
-function openWindow() {
-  window.open(url);
+function test() {
+  Logger.log(ScriptApp.getService().getUrl());
 }
 /***********************************/
