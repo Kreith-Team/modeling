@@ -24,22 +24,42 @@ function parseSpreadsheet() {
   
   // 2D numRows*numCols array containing cells' formulas in R1C1 style
   // cells w/o formulas will be null
-  let formulas = sheet.getFormulasR1C1();
+  let formulasA1 = range.getFormula();
+  let formulasR1 = range.getFormulasR1C1();
   
   for (let i = numRows - 1; i >= 0; i--) {
-    for (let i = numCols - 1; i >= 0; i--) {
+    for (let j = numCols - 1; i >= 0; i--) {
       // find dependencies
-      // check if equivalent to other formulas
+      // check if R1C1 formulas are equivalent
     }
   }
 }
 
 /* Reads the variable in a cell */
 function readCell() {
-  spreadsheet = openById()
-  Logger.log("readCell()");
-  var currentCell = SpreadsheetApp.getCurrentCell();
-  Logger.log(currentCell.getValue());
-  return currentCell;
-  //if (currentCell[length] == '=')
+  //opens the TEST SHEET spreadsheet (by ID)
+  var spreadsheet = SpreadsheetApp.openById('1PyzkC1h1jwPy9Q_wC6lWsO0sUmWmVkvP2EallryNO1g');
+  var sheet = spreadsheet.getSheets()[0];
+  var cellVariable = sheet.getCurrentCell().getValue();
+  //Logger.log(cellVariable);
+  
+  //Gets the column and row numbers for the cell (this is hardcoded, line 46)
+  var range = sheet.getRange("A1:A1");
+  var col = range.getColumn();
+  var row = range.getRow();
+  Logger.log(col);
+  Logger.log(row);
+
+  //The length of the variable name in the cell (with the equals-sign if applicable)
+  var varLength = cellVariable.length;
+  //Logger.log(cellVariable[varLength-1]);
+  var varValue;
+  //If the variable name in the cell ends with an equal sign (=), then varValue is the value in the cell next to it
+  if (cellVariable[varLength - 1] == '=')
+  {
+    varValue = sheet.getRange(row,col+1);
+    Logger.log(varValue.getValue());
+    return varValue.getValue();
+  }
+
 }
