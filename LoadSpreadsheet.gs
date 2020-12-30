@@ -17,22 +17,64 @@ function parseSpreadsheet() {
   
   // get range where data is present, starting at A1
   range = sheet.getDataRange();
-  
+
   // store number of columns/rows in range
   let numCols = range.getLastColumn();
   let numRows = range.getLastRow();
+  Logger.log("Dimensions of range", numCols, numRows);
   
   // 2D numRows*numCols array containing cells' formulas in R1C1 style
   // cells w/o formulas will be null
   let formulasA1 = range.getFormula();
   let formulasR1 = range.getFormulasR1C1();
+  Logger.log(formulasR1);
   
+  var recurrenceNum = 0;
+  var recurrenceList = [0];
+
   for (let i = numRows - 1; i >= 0; i--) {
-    for (let j = numCols - 1; i >= 0; i--) {
-      // find dependencies
-      // check if R1C1 formulas are equivalent
+    for (let j = numCols - 1; j >= 0; j--) {
+      // find dependencies, check if R1C1 formulas are equivalent
+      if(formulasR1[i][j][1] == 'R'){
+        //If the formula begins with an R (in R1C1 notation), then execute the following if statement
+        if (formulasR1[i][j] == formulasR1[i-1][j]) {
+          //Do something if there is a recurrence relation
+          recurrenceList[recurrenceNum] = formulasR1[i][j];
+          recurrenceNum = recurrenceNum + 1;
+        }  
+      }
     }
   }
+}
+
+function findRecurrence() {
+  sheet = SpreadsheetApp.openByUrl(_SHEET_URL).getSheets()[0];
+  range = sheet.getDataRange();
+
+  //finds the number of columns and rows in the range in spreadsheet (dimensions)
+  let numCols = range.getLastColumn();
+  let numRows = range.getLastRow();
+  Logger.log("Dimensions of range", numCols, numRows);
+
+  let formulasR1 = range.getFormulasR1C1();
+
+  recurrenceNum = 0; //Number of recurrence formulas in the spreadsheet
+  recurrenceList = [0]; //Array for the recurrence formulas
+
+  //for loop finds all recurrence formulas in spreadsheet and puts them in a list
+  for(var j = 0; j <= numCols - 1; j++) {
+    for(var i = 0; i <= numRows - 1; i++) {
+      if (formulasR1[i][j][1] == 'R') {
+        //If the formula begins with an R (in R1C1 notation), then execute the following if statement
+        if (formulasR1[i][j] == formulasR1[i+1][j]) {
+          recurrenceList[recurrenceNum] = formulasR1[i][j];
+          recurrenceNum = recurrenceNum + 1;
+          break;
+        }
+      }
+    }
+  }
+  Logger.log(recurrenceList); //logs the recurrence formulas
 }
 
 /* Reads the variable in a cell */
@@ -43,8 +85,8 @@ function readCell() {
   var cellVariable = sheet.getCurrentCell().getValue();
   //Logger.log(cellVariable);
   
-  //Gets the column and row numbers for the cell (this is hardcoded, line 46)
-  var range = sheet.getRange("A1:A1");
+  //Gets the column and row numbers for the cell
+  var range = sheet.getDataRange();
   var col = range.getColumn();
   var row = range.getRow();
   Logger.log(col);
