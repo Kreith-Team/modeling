@@ -2,7 +2,9 @@ _SHEET_URL = "https://docs.google.com/spreadsheets/d/1PyzkC1h1jwPy9Q_wC6lWsO0sUm
 _FYS3 = "https://docs.google.com/spreadsheets/d/12lQqIUoQCMatbAJye9c5FuTYP0HqmYyDqT8yOYp-bzI/edit#gid=104791918"
 _FYS4 = "https://docs.google.com/spreadsheets/d/1-_CPeBmuPuzvEGhtXrUZPe2-zn__Kzfim5aKsskPle8/edit#gid=581941400"
 _FYS6 = "https://docs.google.com/spreadsheets/d/1noIrdtO80akdLUh0PtfpiSZRHnK1Cqe1DvD7O1bGD9U/edit#gid=939761514"
+_FYS7 = "https://docs.google.com/spreadsheets/d/1g0l5zXlH-KNlI2EZsqCJrIrFo9p56uLkRbn0NxxPMac/edit#gid=1150061696"
 _FYS8 = "https://docs.google.com/spreadsheets/d/1igyJpB-8rUI43PIKCvCXFCZLYpEifZrfXe9VtwRkgtQ/edit#gid=909277378"
+_FYS9 = "https://docs.google.com/spreadsheets/d/1W6NRB1WS0WVSo1esPXlIWOvjVO_XqkNdjTuLT6bXigk/edit#gid=485567316"
 
 /* Loads the spreadsheet */
 function loadSheet() {
@@ -52,7 +54,7 @@ function parseSpreadsheet() {
 }
 
 function findRecurrence() {
-  sheet = SpreadsheetApp.openByUrl(_FYS8).getSheets()[0];
+  sheet = SpreadsheetApp.openByUrl(_FYS9).getSheets()[0];
   range = sheet.getDataRange();
 
   //finds the number of columns and rows in the range in spreadsheet (dimensions)
@@ -62,63 +64,81 @@ function findRecurrence() {
 
   let formulasR1 = range.getFormulasR1C1();
 
-  recurrenceNum = 0; //Number of recurrence formulas in the spreadsheet
-  recurrenceList = [0]; //Array for the recurrence formulas
+  recNumCol = 0; //Number of recurrence formulas going down columns in the spreadsheet
+  recListCol = [0]; //Array for the recurrence formulas going down columns
   recCol = [0]; //The array of columns where an recurrence relation occurs
-  recStart = [0, 0, 0, 0, 0, 0, 0, 0]; //The array of rows that the recurrence relation begins
-  recEnd = [0, 0, 0, 0, 0, 0, 0, 0]; //The array of rows that the recurrence relation ends
+  recStartRow = [0]; //The array of rows that the recurrence relation begins
+  recEndRow = [0]; //The array of rows that the recurrence relation ends
 
   //Finds all recurrence formulas down a column and extracts their cell locations
   for(var j = 0; j <= numCols - 1; j++) {
     for(var i = 0; i <= numRows - 1; i++) {
-      if (formulasR1[i][j][1] == 'R') { //If the formula begins with an R (in R1C1 notation), then execute the following if statement
+      if(formulasR1[i][j][1] == 'R') { //If the formula starts with a '=' (R1C1 notation), then execute the following if statement
         if (formulasR1[i][j] == formulasR1[i+1][j]) {
-          recCol[recurrenceNum] = j;
-          recStart[recurrenceNum] = i;
-          recEnd[recurrenceNum] = i; // so that recurrence end doesn't start @ 0
-          recurrenceList[recurrenceNum] = formulasR1[i][j];
-          Logger.log(i, formulasR1[i][j], formulasR1[i+1][j]);
+          recCol[recNumCol] = j;
+          recStartRow[recNumCol] = i;
+          recEndRow[recNumCol] = i; // so that recurrence end doesn't start @ 0
+          recListCol[recNumCol] = formulasR1[i][j];
+          //Logger.log(i, formulasR1[i][j], formulasR1[i+1][j]);
           while (i <= numRows - 2 && formulasR1[i][j] == formulasR1[i + 1][j]) {
-            recEnd[recurrenceNum]++;
+            recEndRow[recNumCol]++;
             i++;
           }
           //Logger.log(recEnd);
-          Logger.log("Recurrence relation", recurrenceList[recurrenceNum], 
-            "at Column", recCol[recurrenceNum], "Rows", recStart[recurrenceNum], "to", recEnd[recurrenceNum]);
-          recurrenceNum++;
+          Logger.log("Recurrence relation", recListCol[recNumCol], 
+            "at Column", recCol[recNumCol], "Rows", recStartRow[recNumCol], "to", recEndRow[recNumCol]);
+          recNumCol++;
           break;
         }
       }
     }
   }
 
-  recurrenceNum = 0; //Number of recurrence formulas in the spreadsheet
-  recurrenceList = [0]; //Array for the recurrence formulas
+  recNumRow = 0; //Number of recurrence formulas going across rows in the spreadsheet
+  recListRow = [0]; //Array for the recurrence formulas going across rows
   recRow = [0]; //The array of rows where an recurrence relation occurs
-  recStart = [0, 0, 0, 0, 0, 0, 0, 0]; //The array of rows that the recurrence relation begins
-  recEnd = [0, 0, 0, 0, 0, 0, 0, 0]; //The array of rows that the recurrence relation ends
+  recStartCol = [0]; //The array of columns that the recurrence relation begins
+  recEndCol = [0]; //The array of columns that the recurrence relation ends
 
   //Finds all recurrence formulas across a row and extracts their cell locations
   for(var i = 0; i <= numRows - 1; i++) {
     for(var j = 0; j <= numCols - 1; j++) {
-      if (formulasR1[i][j][1] == 'R') { //If the formula begins with an R (in R1C1 notation), then execute the following if statement
+      if (formulasR1[i][j][0] == '=') { //If the formula starts with a '=' (R1C1 notation), then execute the following if statement
         if (formulasR1[i][j] == formulasR1[i][j+1]) {
-          recRow[recurrenceNum] = i;
-          recStart[recurrenceNum] = j;
-          recEnd[recurrenceNum] = j; // so that recurrence end doesn't start @ 0
-          recurrenceList[recurrenceNum] = formulasR1[i][j];
-          Logger.log(j, formulasR1[i][j], formulasR1[i][j+1]);
+          recRow[recNumRow] = i;
+          recStartCol[recNumRow] = j;
+          recEndCol[recNumRow] = j; // so that recurrence end doesn't start @ 0
+          recListRow[recNumRow] = formulasR1[i][j];
+          //Logger.log(j, formulasR1[i][j], formulasR1[i][j+1]);
           while (j <= numCols - 2 && formulasR1[i][j] == formulasR1[i][j+1]) {
-            recEnd[recurrenceNum]++;
+            recEndCol[recNumRow]++;
             j++;
           }
-          //Logger.log(recEnd);
-          Logger.log("Recurrence relation", recurrenceList[recurrenceNum], 
-            "at Row", recRow[recurrenceNum], "Columns", recStart[recurrenceNum], "to", recEnd[recurrenceNum]);
-          recurrenceNum++;
+          Logger.log("Recurrence relation", recListRow[recNumRow], 
+            "at Row", recRow[recNumRow], "Columns", recStartCol[recNumRow], "to", recEndCol[recNumRow]);
+          recNumRow++;
           break;
         }
       }
+    }
+  }
+  recList = [0]; //The longest recurrence list out of the two (recListCol & recListRow)
+  if ((recEndRow[0] - recStartRow[0]) > (recEndCol[0] - recStartCol[0])) {
+    recList = recListCol;
+    recCoord = recCol;
+    recStart = recStartRow;
+    recEnd = recEndRow;
+    for (var i = 0; i < recCoord.length; i++) {
+      Logger.log("Main Recurrence relation", recList[i], "at Column", recCoord[i], "Rows", recStart[i], "to", recEnd[i]);
+    }
+  }
+  else {
+    recList = recListRow;
+    recCoord = recRow;
+    recStart = recStartCol;
+    recEnd = recEndCol;
+    for (var i = 0; i < recCoord.length; i++) {
+      Logger.log("Main Recurrence relation", recList[i], "at Row", recCoord[i], "Columns", recStart[i], "to", recEnd[i]);
     }
   }
 }
