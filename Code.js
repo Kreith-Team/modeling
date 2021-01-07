@@ -22,16 +22,16 @@ function onInstall(e) {
 
 /* Called when web app is loaded */
 function doGet(e) {
-  return buildHTML(true);
+  return buildHTML(true, e.parameter.ssid);
 }
 /***********************************/
 
 /********* HTML INTERFACE *********/
 
-function buildHTML(web = false) {
+function buildHTML(web = false, ssid) {
   let template = HtmlService.createTemplateFromFile('Interface');
-  parseSheet();
   template.web = web;
+  template.ssid = ssid;
   return template.evaluate();
 }
 
@@ -61,7 +61,7 @@ function buildMenu() {
 }
 
 function openSidebar() {
-  let html = buildHTML(false);
+  let html = buildHTML(false, SpreadsheetApp.getActiveSpreadsheet().getId());
   SpreadsheetApp.getUi().showSidebar(html);
 }
 

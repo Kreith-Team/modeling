@@ -3,6 +3,33 @@
   <head>
     <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
     <base target="_top">
+  </head>
+  <body>
+    <? if (!web) { // check if in sidebar mode ?>
+      <?!= "<a href = " + buildUrl() + " target=\"_blank\">Open window</a>" ?>
+    <? } ?>
+    <h1>Modeling App Loaded</h1>
+    <?
+      Logger.log(ssid);
+      let spreadsheet = SpreadsheetApp.openById(ssid);
+      let sheet = spreadsheet.getSheets()[0];
+      let relations = findRecurrence(sheet);
+      for (let i = 0; i < relations.length; i++) {
+      ?>
+        <a> <?= relations[i].formula ?> </a>
+      <?
+      }
+    ?>
+    <? /*
+    <button
+      onclick="google.script.run
+          .withSuccessHandler(readSuccess)
+          .withFailureHandler(readFailure)
+          .readCell()" >
+      Test
+    </button>
+    */ ?>
+    
     <script>
       function readSuccess(value) {
         console.log("Read successful w value ", value);
@@ -11,19 +38,6 @@
         console.log("Read failed w error ", err);
       }
     </script>
-  </head>
-  <body>
-    <? if (!web) { // check if in sidebar mode ?>
-      <?!= "<a href = " + buildUrl() + " target=\"_blank\">Open window</a>" ?>
-    <? } ?>
-    <h1>Modeling App Loaded</h1>
-    <button
-      onclick="google.script.run
-          .withSuccessHandler(readSuccess)
-          .withFailureHandler(readFailure)
-          .readCell()" >
-      Test
-    </button>
   </body>
 </html>
 
