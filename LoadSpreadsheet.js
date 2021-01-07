@@ -6,55 +6,20 @@ _FYS7 = "https://docs.google.com/spreadsheets/d/1g0l5zXlH-KNlI2EZsqCJrIrFo9p56uL
 _FYS8 = "https://docs.google.com/spreadsheets/d/1igyJpB-8rUI43PIKCvCXFCZLYpEifZrfXe9VtwRkgtQ/edit#gid=909277378"
 _FYS9 = "https://docs.google.com/spreadsheets/d/1W6NRB1WS0WVSo1esPXlIWOvjVO_XqkNdjTuLT6bXigk/edit#gid=485567316"
 
-/* Loads the spreadsheet */
-function loadSheet() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet();
-  return sheet;
-}
-
-function parseSpreadsheet() {
-  // temporary hard-coding: opens first sheet of spreadsheet at _SHEET_URL
-  sheet = SpreadsheetApp.openByUrl(_SHEET_URL).getSheets()[0];
-  
-  Logger.log(sheet.getDataRange().getValues()) // just for testing - shows that we are able to retrieve values
-  
-  // sheet.getDataRange() gets rectangle where data is present
-  // sheet.getRange(row, column, numRows, numCols) gets rectangle starting at (row, column) w specified size
-  
-  // get range where data is present, starting at A1
-  range = sheet.getDataRange();
-
-  // store number of columns/rows in range
-  let numCols = range.getLastColumn();
-  let numRows = range.getLastRow();
-  Logger.log("Dimensions of range", numCols, numRows);
-  
-  // 2D numRows*numCols array containing cells' formulas in R1C1 style
-  // cells w/o formulas will be null
-  let formulasA1 = range.getFormula();
-  let formulasR1 = range.getFormulasR1C1();
-  Logger.log(formulasR1);
-  
-  var recurrenceNum = 0;
-  var recurrenceList = [0];
-
-  for (let i = numRows - 1; i >= 0; i--) {
-    for (let j = numCols - 1; j >= 0; j--) {
-      // find dependencies, check if R1C1 formulas are equivalent
-      if(formulasR1[i][j][1] == 'R'){
-        //If the formula begins with an R (in R1C1 notation), then execute the following if statement
-        if (formulasR1[i][j] == formulasR1[i-1][j]) {
-          //Do something if there is a recurrence relation
-          recurrenceList[recurrenceNum] = formulasR1[i][j];
-          recurrenceNum = recurrenceNum + 1;
-        }  
-      }
-    }
+function testFindRecurrence() {
+  Logger.log("==== Testing Find Recurrence ====");
+  let rels = findRecurrence(SpreadsheetApp.openByUrl(_FYS3).getSheets()[0]);
+  Logger.log("----------------------------").log("Result");
+  for (let i = 0; i < rels.length; i++) {
+    Logger.log("== %d ==", i);
+    Logger.log(rels[i]);
+    let range = rels[i].range;
+    Logger.log("Formula", rels[i].formula)
+    Logger.log("Range from rows %d to %d and cols %d to %d", range.getRow(), range.getLastRow(), range.getColumn(), range.getLastColumn());
   }
 }
 
-function findRecurrence() {
-  sheet = SpreadsheetApp.openByUrl(_FYS9).getSheets()[0];
+function findRecurrence(sheet) {
   range = sheet.getDataRange();
 
   //finds the number of columns and rows in the range in spreadsheet (dimensions)
@@ -64,20 +29,20 @@ function findRecurrence() {
 
   let formulasR1 = range.getFormulasR1C1();
 
-  recNumCol = 0; //Number of recurrence formulas going down columns in the spreadsheet
-  recListCol = [0]; //Array for the recurrence formulas going down columns
-  recCol = [0]; //The array of columns where an recurrence relation occurs
-  recStartRow = [0]; //The array of rows that the recurrence relation begins
-  recEndRow = [0]; //The array of rows that the recurrence relation ends
+  let recNumCol = 0; //Number of recurrence formulas going down columns in the spreadsheet
+  let recListCol = [0]; //Array for the recurrence formulas going down columns
+  let recCol = [0]; //The array of columns where an recurrence relation occurs
+  let recStartRow = [0]; //The array of rows that the recurrence relation begins
+  let recEndRow = [0]; //The array of rows that the recurrence relation ends
 
   //Finds all recurrence formulas down a column and extracts their cell locations
   for(var j = 0; j <= numCols - 1; j++) {
     for(var i = 0; i <= numRows - 1; i++) {
       if(formulasR1[i][j][1] == 'R') { //If the formula starts with a '=' (R1C1 notation), then execute the following if statement
         if (formulasR1[i][j] == formulasR1[i+1][j]) {
-          recCol[recNumCol] = j;
-          recStartRow[recNumCol] = i;
-          recEndRow[recNumCol] = i; // so that recurrence end doesn't start @ 0
+          recCol[recNumCol] = j + 1;
+          recStartRow[recNumCol] = i + 1;
+          recEndRow[recNumCol] = i + 1; // so that recurrence end doesn't start @ 0
           recListCol[recNumCol] = formulasR1[i][j];
           //Logger.log(i, formulasR1[i][j], formulasR1[i+1][j]);
           while (i <= numRows - 2 && formulasR1[i][j] == formulasR1[i + 1][j]) {
@@ -94,20 +59,20 @@ function findRecurrence() {
     }
   }
 
-  recNumRow = 0; //Number of recurrence formulas going across rows in the spreadsheet
-  recListRow = [0]; //Array for the recurrence formulas going across rows
-  recRow = [0]; //The array of rows where an recurrence relation occurs
-  recStartCol = [0]; //The array of columns that the recurrence relation begins
-  recEndCol = [0]; //The array of columns that the recurrence relation ends
+  let recNumRow = 0; //Number of recurrence formulas going across rows in the spreadsheet
+  let recListRow = [0]; //Array for the recurrence formulas going across rows
+  let recRow = [0]; //The array of rows where an recurrence relation occurs
+  let recStartCol = [0]; //The array of columns that the recurrence relation begins
+  let recEndCol = [0]; //The array of columns that the recurrence relation ends
 
   //Finds all recurrence formulas across a row and extracts their cell locations
   for(var i = 0; i <= numRows - 1; i++) {
     for(var j = 0; j <= numCols - 1; j++) {
       if (formulasR1[i][j][0] == '=') { //If the formula starts with a '=' (R1C1 notation), then execute the following if statement
         if (formulasR1[i][j] == formulasR1[i][j+1]) {
-          recRow[recNumRow] = i;
-          recStartCol[recNumRow] = j;
-          recEndCol[recNumRow] = j; // so that recurrence end doesn't start @ 0
+          recRow[recNumRow] = i + 1;
+          recStartCol[recNumRow] = j + 1;
+          recEndCol[recNumRow] = j + 1; // so that recurrence end doesn't start @ 0
           recListRow[recNumRow] = formulasR1[i][j];
           //Logger.log(j, formulasR1[i][j], formulasR1[i][j+1]);
           while (j <= numCols - 2 && formulasR1[i][j] == formulasR1[i][j+1]) {
@@ -122,24 +87,50 @@ function findRecurrence() {
       }
     }
   }
-  recList = [0]; //The longest recurrence list out of the two (recListCol & recListRow)
+
+  let recList = []; //The longest recurrence list out of the two (recListCol & recListRow)
+  let recCoord;
+  let recStart;
+  let recEnd;
   if ((recEndRow[0] - recStartRow[0]) > (recEndCol[0] - recStartCol[0])) {
     recList = recListCol;
     recCoord = recCol;
     recStart = recStartRow;
     recEnd = recEndRow;
+    Logger.log("********");
+    Logger.log(recList, recCoord, recStart, recEnd);
+    
+    let recs = [];
     for (var i = 0; i < recCoord.length; i++) {
       Logger.log("Main Recurrence relation", recList[i], "at Column", recCoord[i], "Rows", recStart[i], "to", recEnd[i]);
+      Logger.log(recStartRow[i], recCol[i], recEndRow[i] - recStartRow[i] + 1, 1);
+      recs.push({
+        formula: recList[i],
+        range: sheet.getRange(recStartRow[i], recCol[i], recEndRow[i] - recStartRow[i] + 1, 1)
+      });
     }
+    return recs;
   }
   else {
     recList = recListRow;
     recCoord = recRow;
     recStart = recStartCol;
     recEnd = recEndCol;
+    
+    Logger.log("********");
+    Logger.log(recList, recCoord, recStart, recEnd);
+    
+    let recs = [];
     for (var i = 0; i < recCoord.length; i++) {
       Logger.log("Main Recurrence relation", recList[i], "at Row", recCoord[i], "Columns", recStart[i], "to", recEnd[i]);
+      Logger.log(recRow[i], recStartCol[i], 1, recEndCol[i] - recStartCol[i] + 1);
+      recs.push({
+        formula: recList[i],
+        range: sheet.getRange(recRow[i], recStartCol[i], 1, recEndCol[i] - recStartCol[i] + 1)
+      });
+      Logger.log(recs);
     }
+    return recs;
   }
 }
 
