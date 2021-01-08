@@ -3,12 +3,14 @@
   <head>
     <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
     <base target="_top">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
   </head>
   <body>
     <? if (!web) { // check if in sidebar mode ?>
-      <?!= "<a href = " + buildUrl() + " target=\"_blank\">Open window</a>" ?>
+      <?!= "<a href = \"" + buildUrl(ssid) + "\" target=\"_blank\">Open window</a>" ?>
     <? } ?>
     <h1>Modeling App Loaded</h1>
+    <div id=""></div>
     <?
       Logger.log(ssid);
       let spreadsheet = SpreadsheetApp.openById(ssid);
@@ -16,21 +18,36 @@
       let relations = findRecurrence(sheet);
       for (let i = 0; i < relations.length; i++) {
       ?>
-        <a> <?= relations[i].formula ?> </a>
+        <div><a> <?= relations[i].formula ?> </a> <?= relations[i].range.getA1Notation() ?></div>
       <?
       }
     ?>
+    
     <? /*
     <button
       onclick="google.script.run
           .withSuccessHandler(readSuccess)
-          .withFailureHandler(readFailure)
-          .readCell()" >
+          .testFindRecurrence()" >
       Test
     </button>
     */ ?>
     
+    
     <script>
+      "use strict";
+      console.log("beginning");
+      
+      $( function() {
+        let relations = <?= getData(ssid); ?>;
+        console.log(relations);
+        /* console.log("Startup");
+        let ssid = <?= ssid ?>;
+        console.log("SSID loaded", ssid);
+        google.script.run.test(); */
+      });
+      console.log("here");
+      
+    
       function readSuccess(value) {
         console.log("Read successful w value ", value);
       }

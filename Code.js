@@ -4,6 +4,10 @@ url = "https://script.google.com/macros/s/AKfycbwpGhQZ4_Gu7aHSog4J1ppJfMIj_Pb-JU
 // https://sites.google.com/site/scriptsexamples/home/announcements/multiple-accounts-issue-with-google-apps-script
 // url = "https://script.google.com/a/ucdavis.edu/macros/s/AKfycbwpGhQZ4_Gu7aHSog4J1ppJfMIj_Pb-JU-sqaqEMOXx3DqgoNA/exec"
 
+function test() {
+  Logger.log("Test function called!");
+}
+
 /************** TRIGGERS ************
  * Functions that are triggered by
  *  on certain events related to the
@@ -35,7 +39,7 @@ function buildHTML(web = false, ssid) {
   return template.evaluate();
 }
 
-function buildUrl() {
+function buildUrl(ssid) {
   email = Session.getActiveUser().getEmail().split("@");
   let urlNew = "";
   if (email.length == 2) {
@@ -44,6 +48,7 @@ function buildUrl() {
     Logger.log("Bad email '", email.join("@"), "'");
     urlNew = url;
   }
+  urlNew = urlNew + "?ssid=" + ssid;
   Logger.log(urlNew);
   return urlNew;
 }
@@ -63,9 +68,5 @@ function buildMenu() {
 function openSidebar() {
   let html = buildHTML(false, SpreadsheetApp.getActiveSpreadsheet().getId());
   SpreadsheetApp.getUi().showSidebar(html);
-}
-
-function test() {
-  Logger.log(ScriptApp.getService().getUrl());
 }
 /***********************************/

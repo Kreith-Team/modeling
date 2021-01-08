@@ -19,6 +19,10 @@ function testFindRecurrence() {
   }
 }
 
+function getData(ssid) {
+  return findRecurrence(SpreadsheetApp.openById(ssid).getSheets()[0]);
+}
+
 function findRecurrence(sheet) {
   range = sheet.getDataRange();
 
@@ -36,18 +40,18 @@ function findRecurrence(sheet) {
   let recEndRow = [0]; //The array of rows that the recurrence relation ends
 
   //Finds all recurrence formulas down a column and extracts their cell locations
-  for(var j = 0; j <= numCols - 1; j++) {
-    for(var i = 0; i <= numRows - 1; i++) {
-      if(formulasR1[i][j][1] == 'R') { //If the formula starts with a '=' (R1C1 notation), then execute the following if statement
-        if (formulasR1[i][j] == formulasR1[i+1][j]) {
+  for(var j = 0; j <= numCols - 1; j++) { //Start looping from first column
+    for(var i = numRows - 1; i >= 0; i--) { //Start looping from last row
+      if(formulasR1[i][j][0] != null) { //If the formula is not null, then execute the following if statement
+        if (formulasR1[i][j] == formulasR1[i-1][j]) { //Checks if the formula above it is the same
           recCol[recNumCol] = j + 1;
           recStartRow[recNumCol] = i + 1;
           recEndRow[recNumCol] = i + 1; // so that recurrence end doesn't start @ 0
           recListCol[recNumCol] = formulasR1[i][j];
           //Logger.log(i, formulasR1[i][j], formulasR1[i+1][j]);
-          while (i <= numRows - 2 && formulasR1[i][j] == formulasR1[i + 1][j]) {
-            recEndRow[recNumCol]++;
-            i++;
+          while (formulasR1[i][j] == formulasR1[i-1][j]) {
+            recStartRow[recNumCol]--;
+            i--;
           }
           //Logger.log(recEnd);
           Logger.log("Recurrence relation", recListCol[recNumCol], 
@@ -66,21 +70,21 @@ function findRecurrence(sheet) {
   let recEndCol = [0]; //The array of columns that the recurrence relation ends
 
   //Finds all recurrence formulas across a row and extracts their cell locations
-  for(var i = 0; i <= numRows - 1; i++) {
-    for(var j = 0; j <= numCols - 1; j++) {
-      if (formulasR1[i][j][0] == '=') { //If the formula starts with a '=' (R1C1 notation), then execute the following if statement
-        if (formulasR1[i][j] == formulasR1[i][j+1]) {
+  for(var i = 0; i <= numRows - 1; i++) { //Start looping from the first row
+    for(var j = numCols - 1; j >= 0; j--) { //Start looping from the last column
+      if (formulasR1[i][j][0] != null) { //If the formula starts with a '=' (R1C1 notation), then execute the following if statement
+        if (formulasR1[i][j] == formulasR1[i][j-1]) {
           recRow[recNumRow] = i + 1;
           recStartCol[recNumRow] = j + 1;
           recEndCol[recNumRow] = j + 1; // so that recurrence end doesn't start @ 0
           recListRow[recNumRow] = formulasR1[i][j];
           //Logger.log(j, formulasR1[i][j], formulasR1[i][j+1]);
-          while (j <= numCols - 2 && formulasR1[i][j] == formulasR1[i][j+1]) {
-            recEndCol[recNumRow]++;
-            j++;
+          while (formulasR1[i][j] == formulasR1[i][j-1]) {
+            recStartCol[recNumRow]--;
+            j--;
           }
-          Logger.log("Recurrence relation", recListRow[recNumRow], 
-            "at Row", recRow[recNumRow], "Columns", recStartCol[recNumRow], "to", recEndCol[recNumRow]);
+          //Logger.log("Recurrence relation", recListRow[recNumRow], 
+          //"at Row", recRow[recNumRow], "Columns", recStartCol[recNumRow], "to", recEndCol[recNumRow]);
           recNumRow++;
           break;
         }
@@ -92,7 +96,7 @@ function findRecurrence(sheet) {
   let recCoord;
   let recStart;
   let recEnd;
-  if ((recEndRow[0] - recStartRow[0]) > (recEndCol[0] - recStartCol[0])) {
+  if ((recEndRow[0] - recStartRow[0]) > (recEndCol[0] - recStartCol[0])) { //if the column rec relations are longer than the row ones
     recList = recListCol;
     recCoord = recCol;
     recStart = recStartRow;
@@ -103,11 +107,12 @@ function findRecurrence(sheet) {
     let recs = [];
     for (var i = 0; i < recCoord.length; i++) {
       Logger.log("Main Recurrence relation", recList[i], "at Column", recCoord[i], "Rows", recStart[i], "to", recEnd[i]);
-      Logger.log(recStartRow[i], recCol[i], recEndRow[i] - recStartRow[i] + 1, 1);
+      //Logger.log(recStartRow[i], recCol[i], recEndRow[i] - recStartRow[i] + 1, 1);
       recs.push({
         formula: recList[i],
         range: sheet.getRange(recStartRow[i], recCol[i], recEndRow[i] - recStartRow[i] + 1, 1)
       });
+      Logger.log(recs);
     }
     return recs;
   }
