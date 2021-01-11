@@ -4,8 +4,13 @@ url = "https://script.google.com/macros/s/AKfycbwpGhQZ4_Gu7aHSog4J1ppJfMIj_Pb-JU
 // https://sites.google.com/site/scriptsexamples/home/announcements/multiple-accounts-issue-with-google-apps-script
 // url = "https://script.google.com/a/ucdavis.edu/macros/s/AKfycbwpGhQZ4_Gu7aHSog4J1ppJfMIj_Pb-JU-sqaqEMOXx3DqgoNA/exec"
 
+N = 0
+
 function test() {
   Logger.log("Test function called!");
+  N += 1
+  Logger.log("N=", N);
+  return N;
 }
 
 /************** TRIGGERS ************
@@ -32,10 +37,12 @@ function doGet(e) {
 
 /********* HTML INTERFACE *********/
 
-function buildHTML(web = false, ssid) {
+function buildHTML(web = false, ssid, user) {
   let template = HtmlService.createTemplateFromFile('Interface');
   template.web = web;
   template.ssid = ssid;
+  template.activeUser = Session.getActiveUser().getEmail();
+  template.effectiveUser = Session.getEffectiveUser().getEmail();
   return template.evaluate();
 }
 
@@ -68,5 +75,28 @@ function buildMenu() {
 function openSidebar() {
   let html = buildHTML(false, SpreadsheetApp.getActiveSpreadsheet().getId());
   SpreadsheetApp.getUi().showSidebar(html);
+}
+/***********************************/
+
+/***** SPREADSHEET API *****/
+
+function testHighlight() {
+  highlight("1PyzkC1h1jwPy9Q_wC6lWsO0sUmWmVkvP2EallryNO1g", "G1:G5");
+}
+
+function highlight(ssid, rangeA1) {
+  console.log("Made it w ssid", ssid, "range", rangeA1 + "!");
+  sheet = SpreadsheetApp.openById(ssid).getSheets()[0];
+  // sheet = SpreadsheetApp.getActiveSheet();
+  range = sheet.getRange(rangeA1);
+  range.setBackground('pink');
+  return 0;
+}
+
+function unhighlight(ssid, rangeA1) {
+  sheet = SpreadsheetApp.openById(ssid).getSheets()[0];
+  // sheet = SpreadsheetApp.getActiveSheet();
+  range = sheet.getRange(rangeA1);
+  range.setBackground('white');
 }
 /***********************************/

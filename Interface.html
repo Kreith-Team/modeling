@@ -9,6 +9,8 @@
     <? if (!web) { // check if in sidebar mode ?>
       <?!= "<a href = \"" + buildUrl(ssid) + "\" target=\"_blank\">Open window</a>" ?>
     <? } ?>
+    <p>Active User: <?= activeUser ?></p>
+    <p>Effective User: <?= effectiveUser ?></p>
     <h1>Modeling App Loaded</h1>
     <div id=""></div>
     <?
@@ -18,19 +20,20 @@
       let relations = findRecurrence(sheet);
       for (let i = 0; i < relations.length; i++) {
       ?>
-        <div><a> <?= relations[i].formula ?> </a> <?= relations[i].range.getA1Notation() ?></div>
+        <div><?!= "<a onmouseover=\"google.script.run.withSuccessHandler( () => { console.log('Success'); } ).withFailureHandler( () => { console.log('Failure.') }).highlight('" + ssid + "', '" + relations[i].range.getA1Notation() + "')\""
+        + "onmouseout=\"google.script.run.withSuccessHandler( () => { console.log('Success'); } ).withFailureHandler( () => { console.log('Failure.') }).unhighlight('" + ssid + "', '" + relations[i].range.getA1Notation() + "')\""
+        + ">" 
+        ?> 
+        <?= relations[i].formula ?> <?!= "</a>" ?> <?= relations[i].range.getA1Notation() ?></div>
       <?
       }
     ?>
     
-    <? /*
+    
     <button
-      onclick="google.script.run
-          .withSuccessHandler(readSuccess)
-          .testFindRecurrence()" >
+      onclick="google.script.run.withSuccessHandler( () => { console.log('Success'); } ).withFailureHandler( () => { console.log('Failure.') }).test()" >
       Test
     </button>
-    */ ?>
     
     
     <script>
@@ -40,19 +43,18 @@
       $( function() {
         let relations = <?= getData(ssid); ?>;
         console.log(relations);
-        /* console.log("Startup");
-        let ssid = <?= ssid ?>;
-        console.log("SSID loaded", ssid);
-        google.script.run.test(); */
+        google.script.run.test();
       });
       console.log("here");
+      
+      function 
       
     
       function readSuccess(value) {
         console.log("Read successful w value ", value);
       }
       function readFailure(err) {
-        console.log("Read failed w error ", err);
+        console.log("Read failed w error ", JSON.stringify(err));
       }
     </script>
   </body>
