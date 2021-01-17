@@ -8,7 +8,7 @@ _FYS9 = "https://docs.google.com/spreadsheets/d/1W6NRB1WS0WVSo1esPXlIWOvjVO_XqkN
 
 function testFindRecurrence() {
   Logger.log("==== Testing Find Recurrence ====");
-  let rels = findRecurrence(SpreadsheetApp.openByUrl(_FYS3).getSheets()[0]);
+  let rels = findRecurrence(SpreadsheetApp.openByUrl(_SHEET_URL).getSheets()[0]);
   Logger.log("----------------------------").log("Result");
   for (let i = 0; i < rels.length; i++) {
     Logger.log("== %d ==", i);
@@ -20,7 +20,212 @@ function testFindRecurrence() {
 }
 
 function getData(ssid) {
-  return findRecurrence(SpreadsheetApp.openById(ssid).getSheets()[0]);
+  return findRecurrence(SpreadsheetApp.openByUrl(ssid).getSheets()[0]);
+}
+
+function checkFixedCell(cell) { //checks if a cell is fixed or not; R[1]C[1] (not fixed) versus R1C1 (fixed)
+  fixed = true;
+  for(var i = 0; i < cell.length; i++) {
+    if (cell[i] == '[') {
+      fixed = false;
+      break;
+    }
+  }
+  return fixed;
+}
+
+function isFixedColumn(cell) { //checks if the cell is fixed column (R[1]C1)
+  fixed = false;
+  for(var i = 0; i < cell.length; i++) {
+    if (cell[i] == 'C' && cell[i+1] != '[') {
+      fixed = true;
+      break;
+    }
+  }
+  return fixed;
+}
+
+function isFixedRow(cell) { //checks if the cell is fixed row (R1C[1])
+  fixed = false;
+  for(var i = 0; i < cell.length; i++) {
+    if (cell[i] == 'R' && cell[i+1] != '[') {
+      fixed = true;
+      break;
+    }
+  }
+  return fixed;
+}
+
+function convertFunctions() {
+  let rels = getData(_FYS6);
+
+  //Going down columns
+  if(rels[0].range.getColumn() == rels[0].range.getLastColumn()) {
+    for (let i = 0; i < rels.length; i++) {
+      let formula = rels[i].formula.substring(1, rels[i].formula.length);
+      let range = rels[i].range;
+      Logger.log("====Formula" + (i + 1) + " " + formula + "====");
+      Logger.log("Range from rows %d to %d and cols %d to %d", 
+        range.getRow(), range.getLastRow(), range.getColumn(), range.getLastColumn());
+
+      //Separates operations and the parsed R1C1 cells into respective arrays
+      let operation = []; //Array of operations (+, -, *, /, (, ), etc) in the formula
+      let operationIndex = 0; //Index of the operation array
+      let parsed = []; //Array of parsed cells in the formula (R1C1)
+      let parsedIndex = 0; //Index of the parsed cells array
+      let startIndex = 0; //Start index substring
+      for (let j = 1; j < formula.length; j++) {
+        if (formula[j] == "+" || formula[j] == "*" || formula[j] == "/" || formula[j] == "(" || formula[j] == ")" || 
+            formula[j] == "^" || formula[j] == "," || formula[j] == ":" || (formula[j] == "-" && formula[j-1] != "[")) {
+          operation[operationIndex] = formula[j];
+          operationIndex++;
+          parsed[parsedIndex] = formula.substring(startIndex, j);
+          parsedIndex++;
+          startIndex = j + 1;
+        }
+        if (j == formula.length - 1) {
+          parsed[parsedIndex] = formula.substring(startIndex);
+        }
+      }
+      Logger.log("Parsed array of R1C1 parts " + parsed);
+      for (let k = 0; k < parsed.length; k++) {
+        if(/\d/.test(parsed[k]) == false) { //If it is a function like SUM(), MIN(), ROUND(); does not account for functions with numbers like LOG10()
+          parsed[k] = parsed[k];
+        }
+        else if(checkFixedCell(parsed[k]) == true && isNaN(parsed[k])) { //if it is a fixed cell (R1C1, not R[1]C[1]) and not a scalar (number)
+          var rownum = parsed[k].substring(parsed[k].indexOf("R") + 1, parsed[k].indexOf("C")); //Row number
+          var colnum = parsed[k].substring(parsed[k].indexOf("C") + 1, parsed[k].length); //Column number
+          colnum = parseInt(colnum);
+          parsed[k] = String.fromCharCode(colnum + 64) + rownum;
+        }
+        else if(!isNaN(parsed[k]) && parsed[k] != 0) { //if it is a scalar (number) not equal to 0
+          parsed[k] = parseFloat(parsed[k]);
+        }
+        else if(parsed[k] == 0) { //if there is nothing there
+          parsed[k] = null;
+        }
+        else { //if it is a not a fixed cell, nor a scalar, nor null (R[1]C[1] or R[1]C1 (fixed column) or R1C[1] (fixed row))
+          if (isFixedColumn(parsed[k])) {
+            var rowTranslate = parsed[k].substring(parsed[k].indexOf("R[") + 2, parsed[k].indexOf("]")); //Row translation
+            var colnum = parsed[k].substring(parsed[k].indexOf("C") + 1, parsed[k].length); //Column number
+            colnum = parseInt(colnum);
+            parsed[k] = String.fromCharCode(colnum + 64) + "(n+" + rowTranslate + ")";
+          }
+          else if (isFixedRow(parsed[k])) {
+            var rownum = parsed[k].substring(parsed[k].indexOf("R") + 1, parsed[k].indexOf("C")); //Row number
+            var colTranslate = parsed[k].substring(parsed[k].indexOf("C[") + 2, parsed[k].length - 1); //Column translation
+            var column = String.fromCharCode(range.getColumn() + 65 - 1 + parseInt(colTranslate));
+            parsed[k] = column + rownum;
+          }
+          else {
+            var rowTranslate = parsed[k].substring(parsed[k].indexOf("R[") + 2, parsed[k].indexOf("]")); //Row translation
+            var colTranslate = parsed[k].substring(parsed[k].indexOf("C[") + 2, parsed[k].length - 1); //Column translation
+            var column = String.fromCharCode(range.getColumn() + 65 - 1 + parseInt(colTranslate));
+            parsed[k] = column + "(n+" + rowTranslate + ")";
+          }
+        }
+      }
+      Logger.log(parsed);
+      //Concatenate the converted parses back into formula
+      formula = "";
+      for (let k = 0; k < parsed.length - 1; k++) {
+        if(parsed[k] == null) {
+          formula = formula + operation[k];
+        }
+        else {
+          formula = formula + parsed[k] + operation[k];
+        }
+      }
+      if(parsed[parsed.length - 1] != null) {
+        formula = formula + parsed[parsed.length - 1];
+      }
+      Logger.log(formula);
+    }
+  }
+
+  //Going across rows
+  if(rels[0].range.getRow() == rels[0].range.getLastRow()) {
+    for (let i = 0; i < rels.length; i++) {
+      let formula = rels[i].formula;
+      let range = rels[i].range;
+      Logger.log("Formula" + (i + 1) + " " + formula);
+      Logger.log("Range from rows %d to %d and cols %d to %d", 
+        range.getRow(), range.getLastRow(), range.getColumn(), range.getLastColumn());
+      
+      //Separates operations and the parsed R1C1 cells into respective arrays
+      let operation = []; //Array of operations (+, -, *, /, (, ), etc) in the formula
+      let operationIndex = 0; //Index of the operation array
+      let parsed = []; //Array of parsed cells in the formula (R1C1)
+      let parsedIndex = 0; //Index of the parsed cells array
+      let startIndex = 0; //Start index substring
+      for (let j = 1; j < formula.length; j++) {
+        if (formula[j] == "+" || formula[j] == "*" || formula[j] == "/" || formula[j] == "(" || formula[j] == ")" || 
+            formula[j] == "^" || formula[j] == "," || formula[j] == ":" || (formula[j] == "-" && formula[j-1] != "[")) {
+          operation[operationIndex] = formula[j];
+          operationIndex++;
+          parsed[parsedIndex] = formula.substring(startIndex, j);
+          parsedIndex++;
+          startIndex = j + 1;
+        }
+        if (j == formula.length - 1) {
+          parsed[parsedIndex] = formula.substring(startIndex);
+        }
+      }
+      Logger.log("Parsed array of R1C1 parts " + parsed);
+      for (let k = 0; k < parsed.length; k++) {
+        if(/\d/.test(parsed[k]) == false) { //If it is a function like SUM(), MIN(), ROUND(); does not account for functions with numbers like LOG10()
+          parsed[k] = parsed[k];
+        }
+        else if(checkFixedCell(parsed[k]) == true && isNaN(parsed[k])) { //if it is a fixed cell (R1C1, not R[1]C[1]) and not a scalar (number)
+          var rownum = parsed[k].substring(parsed[k].indexOf("R") + 1, parsed[k].indexOf("C")); //Row number
+          var colnum = parsed[k].substring(parsed[k].indexOf("C") + 1, parsed[k].length); //Column number
+          colnum = parseInt(colnum);
+          parsed[k] = String.fromCharCode(colnum + 64) + rownum;
+        }
+        else if(!isNaN(parsed[k]) && parsed[k] != 0) { //if it is a scalar (number) not equal to 0
+          parsed[k] = parseFloat(parsed[k]);
+        }
+        else if(parsed[k] == 0) { //if there is nothing there
+          parsed[k] = null;
+        }
+        else { //if it is a not a fixed cell, nor a scalar, nor null (R[1]C[1] or R[1]C1 (fixed column) or R1C[1] (fixed row))
+          if (isFixedColumn(parsed[k])) {
+            var rowTranslate = parsed[k].substring(parsed[k].indexOf("R[") + 2, parsed[k].indexOf("]")); //Row translation
+            var colnum = parsed[k].substring(parsed[k].indexOf("C") + 1, parsed[k].length); //Column number
+            colnum = parseInt(colnum);
+            parsed[k] = String.fromCharCode(colnum + 64) + String.fromCharCode(range.getRow() + 48);
+          }
+          else if (isFixedRow(parsed[k])) {
+            var rownum = parsed[k].substring(parsed[k].indexOf("R") + 1, parsed[k].indexOf("C")); //Row number
+            var colTranslate = parsed[k].substring(parsed[k].indexOf("C[") + 2, parsed[k].length - 1); //Column translation
+            var column = String.fromCharCode(range.getColumn() + 65 - 1 + parseInt(colTranslate));
+            parsed[k] = "(Column+" + colTranslate + ")" + rownum;
+          }
+          else {
+            var rowTranslate = parsed[k].substring(parsed[k].indexOf("R[") + 2, parsed[k].indexOf("]")); //Row translation
+            var colTranslate = parsed[k].substring(parsed[k].indexOf("C[") + 2, parsed[k].length - 1); //Column translation
+            var column = String.fromCharCode(range.getColumn() + 65 - 1 + parseInt(colTranslate));
+            parsed[k] = column + "(n+" + rowTranslate + ")";
+          }
+        }
+      }
+      Logger.log(parsed);
+      //Concatenate the converted parses back into formula
+      formula = "";
+      for (let k = 0; k < parsed.length - 1; k++) {
+        if(parsed[k] == null) {
+          formula = formula + operation[k];
+        }
+        else {
+          formula = formula + parsed[k] + operation[k];
+        }
+      }
+      if(parsed[parsed.length - 1] != null) {
+        formula = formula + parsed[parsed.length - 1];
+      }
+      Logger.log(formula);
+    }
+  }
 }
 
 function findRecurrence(sheet) {
@@ -29,7 +234,7 @@ function findRecurrence(sheet) {
   //finds the number of columns and rows in the range in spreadsheet (dimensions)
   let numCols = range.getLastColumn();
   let numRows = range.getLastRow();
-  Logger.log("Dimensions of range", numRows, numCols);
+  //Logger.log("Dimensions of range", numRows, numCols);
 
   let formulasR1 = range.getFormulasR1C1();
 
@@ -54,8 +259,8 @@ function findRecurrence(sheet) {
             i--;
           }
           //Logger.log(recEnd);
-          Logger.log("Recurrence relation", recListCol[recNumCol], 
-            "at Column", recCol[recNumCol], "Rows", recStartRow[recNumCol], "to", recEndRow[recNumCol]);
+          //Logger.log("Recurrence relation", recListCol[recNumCol], 
+          //  "at Column", recCol[recNumCol], "Rows", recStartRow[recNumCol], "to", recEndRow[recNumCol]);
           recNumCol++;
           break;
         }
@@ -101,19 +306,18 @@ function findRecurrence(sheet) {
     recCoord = recCol;
     recStart = recStartRow;
     recEnd = recEndRow;
-    Logger.log("********");
-    Logger.log(recList, recCoord, recStart, recEnd);
+    //Logger.log(recList, recCoord, recStart, recEnd);
     
     let recs = [];
     for (var i = 0; i < recCoord.length; i++) {
-      Logger.log("Main Recurrence relation", recList[i], "at Column", recCoord[i], "Rows", recStart[i], "to", recEnd[i]);
+      //Logger.log("Main Recurrence relation", recList[i], "at Column", recCoord[i], "Rows", recStart[i], "to", recEnd[i]);
       //Logger.log(recStartRow[i], recCol[i], recEndRow[i] - recStartRow[i] + 1, 1);
       recs.push({
         formula: recList[i],
         range: sheet.getRange(recStartRow[i], recCol[i], recEndRow[i] - recStartRow[i] + 1, 1)
       });
-      Logger.log(recs);
     }
+    Logger.log(recs);
     return recs;
   }
   else {
@@ -122,19 +326,19 @@ function findRecurrence(sheet) {
     recStart = recStartCol;
     recEnd = recEndCol;
     
-    Logger.log("********");
-    Logger.log(recList, recCoord, recStart, recEnd);
+    //Logger.log("********");
+    //Logger.log(recList, recCoord, recStart, recEnd);
     
     let recs = [];
     for (var i = 0; i < recCoord.length; i++) {
-      Logger.log("Main Recurrence relation", recList[i], "at Row", recCoord[i], "Columns", recStart[i], "to", recEnd[i]);
-      Logger.log(recRow[i], recStartCol[i], 1, recEndCol[i] - recStartCol[i] + 1);
+      //Logger.log("Main Recurrence relation", recList[i], "at Row", recCoord[i], "Columns", recStart[i], "to", recEnd[i]);
+      //Logger.log(recRow[i], recStartCol[i], 1, recEndCol[i] - recStartCol[i] + 1);
       recs.push({
         formula: recList[i],
         range: sheet.getRange(recRow[i], recStartCol[i], 1, recEndCol[i] - recStartCol[i] + 1)
       });
-      Logger.log(recs);
     }
+    Logger.log(recs);
     return recs;
   }
 }
