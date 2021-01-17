@@ -20,7 +20,7 @@ function testFindRecurrence() {
 }
 
 function getData(ssid) {
-  return findRecurrence(SpreadsheetApp.openByUrl(ssid).getSheets()[0]);
+  return findRecurrence(SpreadsheetApp.openById(ssid).getSheets()[0]);
 }
 
 function checkFixedCell(cell) { //checks if a cell is fixed or not; R[1]C[1] (not fixed) versus R1C1 (fixed)
