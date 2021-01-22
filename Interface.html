@@ -2,8 +2,15 @@
 <html>
   <head>
     <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+    <style>
+      #cy {
+        width: 100%;
+        height: 400px;
+      }
+    </style>
     <base target="_top">
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/cytoscape/3.18.0/cytoscape.min.js" integrity="sha512-bg1QBgIk64XNmh8qAaxY2W6TKZ4/Q2sbPQLJ+1vhT3BD+DXXzAqhIbWdgeM82XWcbJKblEoSNhXiakf1NlWU3g==" crossorigin="anonymous"></script>
   </head>
   <body>
     <? if (!web) { // check if in sidebar mode ?>
@@ -28,6 +35,7 @@
       <?
       }
     ?>
+    <div id="cy"></div>
     
     
     <button
@@ -40,15 +48,16 @@
       "use strict";
       console.log("beginning");
       
+      // on page load
       $( function() {
         let relations = <?= getData(ssid); ?>;
-        console.log(relations);
-        google.script.run.test();
+
+        const cy = cytoscape({
+          container: document.getElementById('cy'),
+          elements: [{data: { id: 'a' }}]
+        });
       });
       console.log("here");
-      
-      function 
-      
     
       function readSuccess(value) {
         console.log("Read successful w value ", value);
