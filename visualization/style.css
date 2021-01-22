@@ -1,0 +1,15 @@
+html {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  height: 100%;
+  width: 300px;
+}
+
+#graph {
+  width: 100%;
+  height: 400px;
+  background-color: whitesmoke;
+}
