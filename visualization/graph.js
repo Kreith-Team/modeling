@@ -1,12 +1,24 @@
 "use strict";
 
+console.log([
+  buildStock('x'),
+  buildStock('y'),
+  buildFlow('z', 'x', 'y')
+])
+
 const cy = cytoscape({
   container: document.getElementById('graph'),
-  elements: [{data: { id: 'a' }}],
+  elements: [
+    buildStock('x'),
+    buildStock('y'),
+    buildFlow('z', 'x', 'y')
+  ],
   boxSelectionEnabled: false,
   autoungrabify: true,
-  autolock: true,
   autounselectify: true,
+  layout: {
+    name: 'grid'
+  },
   style: cytoscape.stylesheet()
     .selector('core')
       .style({
@@ -18,3 +30,65 @@ const cy = cytoscape({
         'events': 'no'
       })
 });
+
+console.log(cy)
+
+
+/******* ELEMENT FACTORIES *********
+ * Functions that return Cytoscape-style
+ * objects corresponding to each type of
+ * object in the model
+************************************/
+function buildStock(id) {
+  return ({
+    group: 'nodes',
+    data: {
+      id: id
+    },
+    classes: ['stock']
+  });
+}
+
+function buildConstant(id) {
+  return ({
+    group: 'nodes',
+    data: {
+      id: id
+    },
+    classes: ['constant']
+  });
+}
+
+function buildVariable(id) {
+  return ({
+    group: 'nodes',
+    data: {
+      id: id
+    },
+    classes: ['variable']
+  });
+}
+
+function buildFlow(id, source, target, bidirectional = false) {
+  return ({
+    group: 'edges',
+    data: {
+      id: id,
+      source: source,
+      target: target,
+    },
+    classes: bidirectional ? ['flow', 'bidirectional'] : ['flow']
+  });
+}
+
+function buildInfluence(id, source, target) {
+  return ({
+    group: 'edges',
+    data: {
+      id: id,
+      source: source,
+      target: target,
+    },
+    classes: ['influence']
+  });
+}
