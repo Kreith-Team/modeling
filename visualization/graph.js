@@ -31,7 +31,9 @@ const cy = cytoscape({
     buildFlow('f1', 's1', 's2', true),
     buildConstant('c1'),
     buildVariable('v1'),
-    buildInfluence('i1', 'c1', 'v1')
+    buildInfluence('i1', 'c1', 'v1'),
+    buildCloud('x1'),
+    buildDelay('d1')
   ],
   boxSelectionEnabled: false,
   autoungrabify: true,
@@ -102,5 +104,25 @@ function buildInfluence(id, source, target) {
       target: target,
     },
     classes: ['influence']
+  });
+}
+
+function buildCloud(id) {
+  return ({
+    group: 'nodes',
+    data: {
+      id: id
+    },
+    classes: ['cloud']
+  });
+}
+
+function buildDelay(id) {
+  return ({
+    group: 'nodes',
+    data: {
+      id: id
+    },
+    classes: ['delay']
   });
 }
