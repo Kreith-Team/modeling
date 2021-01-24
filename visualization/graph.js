@@ -1,17 +1,37 @@
 "use strict";
 
-console.log([
-  buildStock('x'),
-  buildStock('y'),
-  buildFlow('z', 'x', 'y')
-])
+const graphStyleStr = `
+core {
+  active-bg-size: 0;
+}
+
+node, edge {
+  events: no;
+}
+
+edge {
+  curve-style: bezier;
+  target-arrow-shape: triangle;
+}
+
+.flow {
+  width: 10px;
+}
+
+.bidirectional {
+  source-arrow-shape: triangle;
+}
+`
 
 const cy = cytoscape({
   container: document.getElementById('graph'),
   elements: [
-    buildStock('x'),
-    buildStock('y'),
-    buildFlow('z', 'x', 'y')
+    buildStock('s1'),
+    buildStock('s2'),
+    buildFlow('f1', 's1', 's2', true),
+    buildConstant('c1'),
+    buildVariable('v1'),
+    buildInfluence('i1', 'c1', 'v1')
   ],
   boxSelectionEnabled: false,
   autoungrabify: true,
@@ -19,16 +39,8 @@ const cy = cytoscape({
   layout: {
     name: 'grid'
   },
-  style: cytoscape.stylesheet()
-    .selector('core')
-      .style({
-        'active-bg-size': 0,
-        'selection-box-color': 'red'
-      })
-    .selector('node, edge')
-      .style({
-        'events': 'no'
-      })
+  style: graphStyleStr,
+  zoom: 1
 });
 
 console.log(cy)
