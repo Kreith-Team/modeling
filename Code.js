@@ -79,6 +79,9 @@ function openSidebar() {
 /***********************************/
 
 /***** SPREADSHEET API *****/
+function getData(ssid) {
+  return findRecurrence(SpreadsheetApp.openByUrl(urlSpreadsheet).getSheets()[0]);
+}
 
 function testHighlight() {
   highlight("1PyzkC1h1jwPy9Q_wC6lWsO0sUmWmVkvP2EallryNO1g", "G1:G5");
