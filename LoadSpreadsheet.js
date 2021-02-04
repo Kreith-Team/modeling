@@ -14,6 +14,13 @@ const category = {
   EMPTY: "EMPTY" // placeholder
 }
 
+/*class Relation extends Element {
+  constructor(id) {
+    super(category.RELATION);
+    this.
+  }
+}*/
+
 function getFromUrl(urlSpreadsheet) {
   return findRecurrence(SpreadsheetApp.openByUrl(urlSpreadsheet).getSheets()[0]);
 }
@@ -27,44 +34,114 @@ function readSheet(ssid) {
   let relations = findRecurrence(sheet);
 }
 
-function interpretSheet(sheet = SpreadsheetApp.openByUrl(_FYS4).getSheets()[0]) {
+function extractData(sheet = SpreadsheetApp.openByUrl(_FYS4).getSheets()[0]) {
+  // Code to generate arbitrary IDs
   n = 0;
   const generateID = () => {
     n += 1;
-    return (strn - 1).toString();
+    return (n - 1).toString();
   }
 
+  // Get and parse relations
   relationsFound = findRecurrence(sheet)
   parses = convertFunctions(relationsFound);
 
-  relations = [];
-  constants = [];
+  console.log("findRecurrence():", relationsFound)
 
-  lookup = {}
+  // Build lists of relations and constants, id lookup table
+  let constants = [];
+  let relations = [];
+  let other = []; // Multi-cell ranges that are not found by findRecurrence()
+  let lookup = {}
+
+  // tracks column/row numbers of each relation
+  let relPositions = [];
+
+  // looks up ID of constant or relation based on position
+  let pos2id = {};
 
   // whether relations are in columns (True) or rows (False)
-  const overColumns = (relationsFound[0].range.getColumn() == rels[0].range.getLastColumn());
+  const overColumns = (relationsFound[0].range.getColumn() == relationsFound[0].range.getLastColumn());
 
+  // Creates an entry for a new constant
+  const newConstant = (posA1) => {
+    const idConstant = generateID();
+    pos2id[posA1] = idConstant;
+    constants.push(idConstant);
+    lookup[idConstant] = ({
+      range: sheet.getRange(posA1)
+    });
+  }
+
+  // Initial pass through relations to associate location and ID so that ranges can be linked later
+  for (let rel of relationsFound) {
+    // Generate a unique ID for the range
+    const id = generateID();
+    // Get the range's column or row number
+    const pos = overColumns ? range.getColumn() : range.getRow();
+
+    // Save data
+    pos2id[pos] = id;
+    relations.push(id);
+    lookup[id] = {
+      range: rel.range,
+      recursive: false
+    }
+  }
+
+  let flows = [];
+  let influences = [];
+
+  // Second pass: find constants, check for recurrence relations and expand ranges if necessary
   for (let i = 0; i < relationsFound.length; i++) {
-    const {rangeRepeated} = relationsFound[i];
     const {types, tokens, operators} = parses[i];
 
     // Column or row position of the given relation
-    const pos = overColumns ? range.getColumn() : range.getRow();
-
-    let recurrent = false;
+    const id = relations[i];
+    const r = lookup[id].range;
 
     for (let j = 0; j < types.length; j++) {
       const type = types[j];
       const token = tokens[j];
 
-      if (type == category.VALUE) {
+      if (type == category.RELATION) {
+        let idRange = pos2id[token.pos]; // attempt to get ID of range
+        let offset = pos2id[token.offset];
 
+        // Handle range that wasn't found by findRecurrence()
+        if(!idRange) {
+          idRange = generateID();
+          pos2id[token.pos] = idRange;
+
+        }
+
+        if (idRange == id) { // recursive reference
+          lookup[id].range = overColumns ?
+            r.offset(offset, 0, r.getHeight() - offset) :
+            r.offset(0, offset, r.getHeight(), r.getWidth() - offset);
+          lookup[id].recursive = true;
+        }
+
+        parses[i].tokens[j].id = pos2id[token.pos];
       } else if (type == category.CONSTANT) {
-
+        // constant hasn't been referenced yet
+        if (!pos2id[token.pos]) {
+          newConstant(token);
+        }
+        parses[i].tokens[j].id = pos2id[token.pos];
       }
     }
   }
+
+  let x = {
+    relations,
+    constants,
+    other,
+    lookup,
+    pos2id
+  }
+  Logger.log(x)
+  Logger.log(parses);
 }
 
 function convertFunctions(rels = getFromUrl(_FYS6)) {
@@ -76,9 +153,9 @@ function convertFunctions(rels = getFromUrl(_FYS6)) {
     /* PARSING */
     let formula = rels[i].formula.substring(1, rels[i].formula.length);
     let range = rels[i].range;
-    Logger.log("====Formula" + (i + 1) + " " + formula + "====");
-    Logger.log("Range from rows %d to %d and cols %d to %d", 
-      range.getRow(), range.getLastRow(), range.getColumn(), range.getLastColumn());
+    // Logger.log("====Formula" + (i + 1) + " " + formula + "====");
+    /* Logger.log("Range from rows %d to %d and cols %d to %d", 
+      range.getRow(), range.getLastRow(), range.getColumn(), range.getLastColumn()); */
 
     //Separates operations and the parsed R1C1 cells into respective arrays
     let operation = []; //Array of operations (+, -, *, /, (, ), etc) in the formula
@@ -99,7 +176,7 @@ function convertFunctions(rels = getFromUrl(_FYS6)) {
         parsed[parsedIndex] = formula.substring(startIndex);
       }
     }
-    Logger.log("Parsed array of R1C1 parts " + parsed);
+    // Logger.log("Parsed array of R1C1 parts " + parsed);
 
     /* INTERPRETATION */
     types = []
@@ -181,8 +258,8 @@ function convertFunctions(rels = getFromUrl(_FYS6)) {
           let rowTranslate = parsed[k].substring(parsed[k].indexOf("R[") + 2, parsed[k].indexOf("]")); //Row translation
           let colTranslate = parsed[k].substring(parsed[k].indexOf("C[") + 2, parsed[k].length - 1); //Column translation
           let column = String.fromCharCode(range.getColumn() + 65 - 1 + parseInt(colTranslate));
-          Logger.log(rowTranslate);
-          Logger.log(colTranslate);
+          // Logger.log(rowTranslate);
+          // Logger.log(colTranslate);
           parsed[k] = column + "(n+" + rowTranslate + ")";
           types.push(category.RELATION);
           if (overColumns) {
@@ -199,10 +276,10 @@ function convertFunctions(rels = getFromUrl(_FYS6)) {
         }
       }
     }
-    Logger.log(types);
-    Logger.log(tokens);
-    Logger.log(parsed);
-    Logger.log(operation);
+    // Logger.log(types);
+    // Logger.log(tokens);
+    // Logger.log(parsed);
+    // Logger.log(operation);
     //Concatenate the converted parses back into formula
     formula = "";
     for (let k = 0; k < parsed.length - 1; k++) {
@@ -216,7 +293,7 @@ function convertFunctions(rels = getFromUrl(_FYS6)) {
     if(parsed[parsed.length - 1] != null) {
       formula = formula + parsed[parsed.length - 1];
     }
-    Logger.log(formula);
+    // Logger.log(formula);
 
     result.push({
       types: types,
@@ -353,7 +430,7 @@ function findRecurrence(sheet) {
         range: sheet.getRange(recStartRow[i], recCol[i], recEndRow[i] - recStartRow[i] + 1, 1)
       });
     }
-    Logger.log(recs);
+    // Logger.log(recs);
     return recs;
   }
   else {
@@ -391,8 +468,8 @@ function readCell() {
   let range = sheet.getDataRange();
   let col = range.getColumn();
   let row = range.getRow();
-  Logger.log(col);
-  Logger.log(row);
+  // Logger.log(col);
+  // Logger.log(row);
 
   //The length of the variable name in the cell (with the equals-sign if applicable)
   let varLength = cellVariable.length;
