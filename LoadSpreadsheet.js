@@ -41,6 +41,9 @@ class Model {
   getParameters() {
     return this.parameters.values();
   }
+  numParameters() {
+    return this.parameters.size;
+  }
 
   generateID() {
     this.n += 1;
@@ -95,6 +98,10 @@ class Parameter extends Element {
   getID() {
     return this.id;
   }
+
+  getRange() {
+    return this.range;
+  }
 }
 
 class Relation extends Parameter {
@@ -119,7 +126,7 @@ class Relation extends Parameter {
     const iterator = {
       next: function() {
         let result;
-        if (i < operators.length) {
+        if (i < operands.length) {
           result = { done: false, value: [(i > 0 ? operators[i - 1] : null), operands[i]] };
           i++;
         } else {
@@ -131,7 +138,7 @@ class Relation extends Parameter {
     return iterator;
   }
   isRecursive() {
-    return this.iRecursive !== []
+    return this.iRecursive.length > 0;
   }
 
   setOperators(operators) {
@@ -176,7 +183,42 @@ function readSheet(ssid) {
   let relations = findRecurrence(sheet);
 }
 
-function buildRelations(m = extractData()) {
+function getUIData(sheet = SpreadsheetApp.openByUrl(_FYS3).getSheets()[0]) {
+  const model = extractData(sheet);
+
+  const ui = {
+    style: buildStyle(model),
+    elements: buildGraph(model)
+  }
+
+  Logger.log(JSON.stringify(ui));
+  
+  return ui;
+}
+
+function buildStyle(m) {
+  const colors = buildColorList(m.numParameters());
+
+  return Array.from(
+    m.getParameters(),
+    (param, i) => {
+      return {
+        selector: "#" + param.getID(),
+        style: {
+          'background-color': colors[i],
+          'label': param.getRange().getA1Notation()
+        }
+      };
+    }
+  );
+}
+
+// returns a list of n evenly-distributed HSL-style color codes
+function buildColorList(n) {
+  return Array.from({length: n}, (_, i) => `hsl(${(i/n)*360}, 100%, 85%)`);
+}
+
+function buildGraph(m) {
   let v = []; // nodes
   let e = []; // edges
 
@@ -205,11 +247,12 @@ function buildRelations(m = extractData()) {
       let result = it.next();
       while (!result.done) {
         [operator, operand] = result.value; // get iterator values
+        if (operand !== undefined && operand !== null) {
+          let element = operand.getElement();
 
-        let element = operand.getElement();
-
-        if (element.isRelation() || element.isConstant()) {
-          addInfluence(element, p);
+          if (element.isRelation() || element.isConstant()) {
+            addInfluence(element, p);
+          }
         }
 
         result = it.next(); // continue iterating
@@ -221,12 +264,10 @@ function buildRelations(m = extractData()) {
 
   const g = v.concat(e);
 
-  Logger.log(JSON.stringify(g));
-
   return g;
 }
 
-function extractData(sheet = SpreadsheetApp.openByUrl(_FYS4).getSheets()[0]) {
+function extractData(sheet) {
   let m = new Model();
 
   // Get and parse relations
