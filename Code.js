@@ -60,6 +60,11 @@ function buildUrl(ssid) {
   return urlNew;
 }
 
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename)
+      .getContent();
+}
+
 /***********************************/
 
 /***** MENU-RELATED FUNCTIONS *****/
@@ -80,7 +85,7 @@ function openSidebar() {
 
 /***** SPREADSHEET API *****/
 function getData(ssid) {
-  return findRecurrence(SpreadsheetApp.openByUrl(urlSpreadsheet).getSheets()[0]);
+  return findRecurrence(SpreadsheetApp.openById(ssid).getSheets()[0]);
 }
 
 function testHighlight() {

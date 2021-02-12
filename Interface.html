@@ -18,6 +18,7 @@
     <? } ?>
     <p>Active User: <?= activeUser ?></p>
     <p>Effective User: <?= effectiveUser ?></p>
+    <?= extractData(); ?>
     <h1>Modeling App Loaded</h1>
     <div id=""></div>
     <?
@@ -44,28 +45,7 @@
     </button>
     
     
-    <script>
-      "use strict";
-      console.log("beginning");
-      
-      // on page load
-      $( function() {
-        let relations = <?= getData(ssid); ?>;
-
-        const cy = cytoscape({
-          container: document.getElementById('cy'),
-          elements: [{data: { id: 'a' }}]
-        });
-      });
-      console.log("here");
-    
-      function readSuccess(value) {
-        console.log("Read successful w value ", value);
-      }
-      function readFailure(err) {
-        console.log("Read failed w error ", JSON.stringify(err));
-      }
-    </script>
+    <?!= include('Graph.js'); ?>
   </body>
 </html>
 

@@ -11,15 +11,157 @@ const category = {
   RELATION: "RELATION", // relative reference to relation
   CONSTANT: "CONSTANT", // absolute reference
   FUNCTION: "FUNCTON", // spreadsheet function
+  OTHER: "OTHER",
   EMPTY: "EMPTY" // placeholder
 }
 
-/*class Relation extends Element {
-  constructor(id) {
-    super(category.RELATION);
-    this.
+class Model {
+  constructor() {
+    this.parameters = new Map();
+
+    this.n = 0;
   }
-}*/
+
+  addConstant(range) {
+    const c = new Constant(this.generateID(), range);
+
+    this.parameters.set(c.id, c);
+
+    return c;
+  }
+  addRelation(range) {
+    const r = new Relation(this.generateID(), range);
+
+    this.parameters.set(r.id, r);
+
+    return r;
+  }
+
+  // returns iterator to model relations and constants
+  getParameters() {
+    return this.parameters.values();
+  }
+
+  generateID() {
+    this.n += 1;
+    return (this.n - 1).toString();
+  }
+}
+
+class Operand {
+  constructor(element, displacement = undefined) {
+    this.element = element;
+    this.displacement = displacement;
+  }
+
+  getDisplacement() {
+    return displacement;
+  }
+  getElement() {
+    return this.element;
+  }
+}
+
+class Element {
+  constructor(type) {
+    this.type = type
+  }
+
+  isValue() {
+    return this.type == category.VALUE;
+  }
+  isRelation() {
+    return this.type == category.RELATION;
+  }
+  isConstant() {
+    return this.type == category.CONSTANT;
+  }
+  isFunction() {
+    return this.type == category.FUNCTION;
+  }
+  isOther() {
+    return this.type == category.OTHER;
+  }
+}
+
+// constants and relationships
+class Parameter extends Element {
+  constructor(type, id, range) {
+    super(type)
+    this.id = id;
+    this.range = range;
+  }
+
+  getID() {
+    return this.id;
+  }
+}
+
+class Relation extends Parameter {
+  constructor(id, range) {
+    super(category.RELATION, id, range);
+
+    this.operators = [];
+    this.operands = [];
+    
+    // tracks recursive operand indexes and depths
+    this.iRecursive = [];
+    this.depthRecursion = 0;
+
+    this.parents = []; // ids
+  }
+
+  getIterator() {
+    let i = 0;
+    let operators = this.operators;
+    let operands = this.operands;
+
+    const iterator = {
+      next: function() {
+        let result;
+        if (i < operators.length) {
+          result = { done: false, value: [(i > 0 ? operators[i - 1] : null), operands[i]] };
+          i++;
+        } else {
+          result = { done: true, value: undefined};
+        }
+        return result
+      }
+    };
+    return iterator;
+  }
+  isRecursive() {
+    return this.iRecursive !== []
+  }
+
+  setOperators(operators) {
+    this.operators = operators;
+  }
+  addOperand(element, displacement = undefined) {
+    this.operands.push(new Operand(element, displacement));
+
+    // check for recursive reference
+    if (element.isRelation() && this.id == element.id) { // recursive reference
+      this.iRecursive.push(this.operands.length - 1);
+      if (displacement > this.depthRecursion) {
+        this.depthRecursion = displacement;
+        this.range = (this.range.getColumn() == this.range.getLastColumn()) ?
+          this.range.offset(-displacement, 0, this.range.getHeight() + displacement) :
+          this.range.offset(0, -displacement, this.range.getHeight(), this.range.getWidth() + displacement);
+      }
+    }
+
+    if (element instanceof Parameter) {
+      this.parents.push(element.id);
+    }
+  }
+}
+
+class Constant extends Parameter {
+  constructor(id, range) {
+    super(category.CONSTANT, id, range);
+  }
+}
 
 function getFromUrl(urlSpreadsheet) {
   return findRecurrence(SpreadsheetApp.openByUrl(urlSpreadsheet).getSheets()[0]);
@@ -34,114 +176,110 @@ function readSheet(ssid) {
   let relations = findRecurrence(sheet);
 }
 
-function extractData(sheet = SpreadsheetApp.openByUrl(_FYS4).getSheets()[0]) {
-  // Code to generate arbitrary IDs
-  n = 0;
-  const generateID = () => {
-    n += 1;
-    return (n - 1).toString();
+function buildRelations(m = extractData()) {
+  let v = []; // nodes
+  let e = []; // edges
+
+  const addStock = (p) => v.push(buildStock(p.getID()));
+  const addConstant = (p) => v.push(buildConstant(p.getID()));
+  const addVariable = (p) => v.push(buildVariable(p.getID()));
+  const addInfluence = (pSrc, pDest) => e.push(buildInfluence(m.generateID(), pSrc.getID(), pDest.getID()));
+  const addFlow = (pSrc, pDest) => e.push(buildFlow(m.generateID(), pSrc.getID(), pDest.getID(), false));
+
+  const createStockFlow = (p) => {
   }
 
-  // Get and parse relations
-  relationsFound = findRecurrence(sheet)
-  parses = convertFunctions(relationsFound);
+  // Build stock, constant, and variable nodes
+  for (const p of m.getParameters()) {
+    if (p.isRelation()) { // stock or variable
+      if (p.isRecursive()) { // stock
+        // Add a stock node to the graph
+        addStock(p);
+      } else { // variable
+        // Add a variable node to the graph
+        addVariable(p);
+      }
 
-  console.log("findRecurrence():", relationsFound)
+      // Iterate over elements of the equation
+      const it = p.getIterator();
+      let result = it.next();
+      while (!result.done) {
+        [operator, operand] = result.value; // get iterator values
 
-  // Build lists of relations and constants, id lookup table
-  let constants = [];
-  let relations = [];
-  let other = []; // Multi-cell ranges that are not found by findRecurrence()
-  let lookup = {}
+        let element = operand.getElement();
 
-  // tracks column/row numbers of each relation
-  let relPositions = [];
+        if (element.isRelation() || element.isConstant()) {
+          addInfluence(element, p);
+        }
 
-  // looks up ID of constant or relation based on position
-  let pos2id = {};
-
-  // whether relations are in columns (True) or rows (False)
-  const overColumns = (relationsFound[0].range.getColumn() == relationsFound[0].range.getLastColumn());
-
-  // Creates an entry for a new constant
-  const newConstant = (posA1) => {
-    const idConstant = generateID();
-    pos2id[posA1] = idConstant;
-    constants.push(idConstant);
-    lookup[idConstant] = ({
-      range: sheet.getRange(posA1)
-    });
-  }
-
-  // Initial pass through relations to associate location and ID so that ranges can be linked later
-  for (let rel of relationsFound) {
-    // Generate a unique ID for the range
-    const id = generateID();
-    // Get the range's column or row number
-    const pos = overColumns ? range.getColumn() : range.getRow();
-
-    // Save data
-    pos2id[pos] = id;
-    relations.push(id);
-    lookup[id] = {
-      range: rel.range,
-      recursive: false
+        result = it.next(); // continue iterating
+      }
+    } else if (p.isConstant()) { // variable
+      addConstant(p);
     }
   }
 
-  let flows = [];
-  let influences = [];
+  const g = v.concat(e);
+
+  Logger.log(JSON.stringify(g));
+
+  return g;
+}
+
+function extractData(sheet = SpreadsheetApp.openByUrl(_FYS4).getSheets()[0]) {
+  let m = new Model();
+
+  // Get and parse relations
+  relationsFound = findRecurrence(sheet);
+  parses = convertFunctions(relationsFound);
+
+  // looks up ID of constant or relation based on position
+  let pos2rel = new Map();
+  let pos2const = new Map();
+  // whether relations are in columns (True) or rows (False)
+  const overColumns = (relationsFound[0].range.getColumn() == relationsFound[0].range.getLastColumn());
+
+  // Initial pass through relations to associate location and ID so that ranges can be linked later
+  for (let rel of relationsFound) {
+    pos2rel.set(overColumns ? rel.range.getColumn() : rel.range.getRow(), m.addRelation(rel.range));
+  }
 
   // Second pass: find constants, check for recurrence relations and expand ranges if necessary
-  for (let i = 0; i < relationsFound.length; i++) {
+  let i = 0; // track progress through relations
+  for (let rel of pos2rel.values()) {
     const {types, tokens, operators} = parses[i];
-
-    // Column or row position of the given relation
-    const id = relations[i];
-    const r = lookup[id].range;
+    rel.setOperators(operators);
 
     for (let j = 0; j < types.length; j++) {
       const type = types[j];
       const token = tokens[j];
 
       if (type == category.RELATION) {
-        let idRange = pos2id[token.pos]; // attempt to get ID of range
-        let offset = pos2id[token.offset];
+        let operand = pos2rel.get(token.pos); // attempt to get ID of range
+        let displacement = Math.abs(token.offset);
 
         // Handle range that wasn't found by findRecurrence()
-        if(!idRange) {
-          idRange = generateID();
-          pos2id[token.pos] = idRange;
-
+        if(operand === undefined) {
+          rel.addOperand(new Element(category.OTHER, displacement)); // EXPAND
+        } else {
+          rel.addOperand(operand, displacement);
         }
-
-        if (idRange == id) { // recursive reference
-          lookup[id].range = overColumns ?
-            r.offset(offset, 0, r.getHeight() - offset) :
-            r.offset(0, offset, r.getHeight(), r.getWidth() - offset);
-          lookup[id].recursive = true;
-        }
-
-        parses[i].tokens[j].id = pos2id[token.pos];
       } else if (type == category.CONSTANT) {
         // constant hasn't been referenced yet
-        if (!pos2id[token.pos]) {
-          newConstant(token);
+        let constant = pos2const.get(token.pos);
+
+        if (constant === undefined) {
+          constant = m.addConstant(sheet.getRange(token));
+          pos2const.set(token, constant);
         }
-        parses[i].tokens[j].id = pos2id[token.pos];
+
+        rel.addOperand(constant);
       }
     }
+    i++;
   }
 
-  let x = {
-    relations,
-    constants,
-    other,
-    lookup,
-    pos2id
-  }
-  Logger.log(x)
-  Logger.log(parses);
+  return m;
 }
 
 function convertFunctions(rels = getFromUrl(_FYS6)) {
@@ -496,4 +634,25 @@ function testFindRecurrence() {
     Logger.log("Formula", rels[i].formula)
     Logger.log("Range from rows %d to %d and cols %d to %d", range.getRow(), range.getLastRow(), range.getColumn(), range.getLastColumn());
   }
+}
+
+// From https://stackoverflow.com/questions/29085197/how-do-you-json-stringify-an-es6-map
+function replacer(key, value) {
+  if(value instanceof Map) {
+    return {
+      dataType: 'Map',
+      value: Array.from(value.entries()), // or with spread: value: [...value]
+    };
+  } else {
+    return value;
+  }
+}
+
+function reviver(key, value) {
+  if(typeof value === 'object' && value !== null) {
+    if (value.dataType === 'Map') {
+      return new Map(value.value);
+    }
+  }
+  return value;
 }
