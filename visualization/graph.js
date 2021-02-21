@@ -1,5 +1,78 @@
 "use strict";
 
+const graphStyle = [
+  {
+    "selector": "core",
+    "style": {
+      "active-bg-size": "0px"
+    }
+  },
+  {
+    "selector": "node, edge",
+    "style": {
+      "events": "no"
+    }
+  },
+  {
+    "selector": "node",
+    "style": {
+      "text-wrap": "wrap",
+      "text-valign": "center",
+      "text-halign": "center",
+      "width": "label"
+    }
+  },
+  {
+    "selector": ".stock",
+    "style": {
+      "shape": "rectangle"
+    }
+  },
+  {
+    "selector": ".variable",
+    "style": {
+      "shape": "diamond"
+    }
+  },
+  {
+    "selector": ".constant",
+    "style": {
+      "shape": "ellipse"
+    }
+  },
+  {
+    "selector": ".cloud",
+    "style": {
+      "shape": "star"
+    }
+  },
+  {
+    "selector": "edge",
+    "style": {
+      "curve-style": "taxi",
+      "target-arrow-shape": "triangle"
+    }
+  },
+  {
+    "selector": ".flow-node",
+    "style": {
+      "shape": "heptagon"
+    }
+  },
+  {
+    "selector": ".flow-edge",
+    "style": {
+      "width": "10px"
+    }
+  },
+  {
+    "selector": ".bidirectional",
+    "style": {
+      "source-arrow-shape": "triangle"
+    }
+  }
+]
+
 const graphStyleStr = `
 core {
   active-bg-size: 0;
@@ -28,12 +101,20 @@ node {
   shape: ellipse;
 }
 
+.cloud {
+  shape: star;
+}
+
 edge {
-  curve-style: bezier;
+  curve-style: taxi;
   target-arrow-shape: triangle;
 }
 
-.flow {
+.flow-node {
+  shape: heptagon;
+}
+
+.flow-edge {
   width: 10px;
 }
 
@@ -42,7 +123,7 @@ edge {
 }
 `
 
-const data = 		{"style":[{"selector":"#0","style":{"background-color":"hsl(0, 100%, 85%)","label":"B8:B24"}},{"selector":"#1","style":{"background-color":"hsl(30, 100%, 85%)","label":"C8:C24"}},{"selector":"#2","style":{"background-color":"hsl(60, 100%, 85%)","label":"D8:D24"}},{"selector":"#3","style":{"background-color":"hsl(90, 100%, 85%)","label":"E8:E24"}},{"selector":"#4","style":{"background-color":"hsl(120, 100%, 85%)","label":"F8:F24"}},{"selector":"#5","style":{"background-color":"hsl(150, 100%, 85%)","label":"G8:G24"}},{"selector":"#6","style":{"background-color":"hsl(180, 100%, 85%)","label":"H8:H24"}},{"selector":"#7","style":{"background-color":"hsl(210, 100%, 85%)","label":"I8:I24"}},{"selector":"#8","style":{"background-color":"hsl(240, 100%, 85%)","label":"J8:J24"}},{"selector":"#9","style":{"background-color":"hsl(270, 100%, 85%)","label":"E6"}},{"selector":"#10","style":{"background-color":"hsl(300, 100%, 85%)","label":"H6"}},{"selector":"#11","style":{"background-color":"hsl(330, 100%, 85%)","label":"D3"}}],"elements":[{"group":"nodes","data":{"id":"0"},"classes":["stock"]},{"group":"nodes","data":{"id":"1"},"classes":["stock"]},{"group":"nodes","data":{"id":"2"},"classes":["variable"]},{"group":"nodes","data":{"id":"3"},"classes":["variable"]},{"group":"nodes","data":{"id":"4"},"classes":["stock"]},{"group":"nodes","data":{"id":"5"},"classes":["variable"]},{"group":"nodes","data":{"id":"6"},"classes":["variable"]},{"group":"nodes","data":{"id":"7"},"classes":["variable"]},{"group":"nodes","data":{"id":"8"},"classes":["variable"]},{"group":"nodes","data":{"id":"9"},"classes":["constant"]},{"group":"nodes","data":{"id":"10"},"classes":["constant"]},{"group":"nodes","data":{"id":"11"},"classes":["constant"]},{"group":"edges","data":{"id":"12","source":"0","target":"0"},"classes":["influence"]},{"group":"edges","data":{"id":"13","source":"1","target":"1"},"classes":["influence"]},{"group":"edges","data":{"id":"14","source":"8","target":"1"},"classes":["influence"]},{"group":"edges","data":{"id":"15","source":"1","target":"2"},"classes":["influence"]},{"group":"edges","data":{"id":"16","source":"9","target":"2"},"classes":["influence"]},{"group":"edges","data":{"id":"17","source":"2","target":"3"},"classes":["influence"]},{"group":"edges","data":{"id":"18","source":"4","target":"4"},"classes":["influence"]},{"group":"edges","data":{"id":"19","source":"8","target":"4"},"classes":["influence"]},{"group":"edges","data":{"id":"20","source":"4","target":"5"},"classes":["influence"]},{"group":"edges","data":{"id":"21","source":"10","target":"5"},"classes":["influence"]},{"group":"edges","data":{"id":"22","source":"5","target":"6"},"classes":["influence"]},{"group":"edges","data":{"id":"23","source":"3","target":"7"},"classes":["influence"]},{"group":"edges","data":{"id":"24","source":"6","target":"7"},"classes":["influence"]},{"group":"edges","data":{"id":"25","source":"7","target":"8"},"classes":["influence"]},{"group":"edges","data":{"id":"26","source":"1","target":"8"},"classes":["influence"]},{"group":"edges","data":{"id":"27","source":"11","target":"8"},"classes":["influence"]}]}
+const data = 	{"style":[{"selector":"#0","style":{"background-color":"hsl(0, 100%, 85%)","label":"Years"}},{"selector":"#1","style":{"background-color":"hsl(30, 100%, 85%)","label":"Population"}},{"selector":"#2","style":{"background-color":"hsl(60, 100%, 85%)","label":"People per Billion GDP"}},{"selector":"#3","style":{"background-color":"hsl(90, 100%, 85%)","label":"People per Million GDP"}},{"selector":"#4","style":{"background-color":"hsl(120, 100%, 85%)","label":"Population"}},{"selector":"#5","style":{"background-color":"hsl(150, 100%, 85%)","label":"People per Billion GDP"}},{"selector":"#6","style":{"background-color":"hsl(180, 100%, 85%)","label":"People per Million GDP"}},{"selector":"#7","style":{"background-color":"hsl(210, 100%, 85%)","label":"Driving Force"}},{"selector":"#8","style":{"background-color":"hsl(240, 100%, 85%)","label":"Number of Migrants"}},{"selector":"#9","style":{"background-color":"hsl(270, 100%, 85%)","label":1000}},{"selector":"#10","style":{"background-color":"hsl(300, 100%, 85%)","label":20000}},{"selector":"#11","style":{"background-color":"hsl(330, 100%, 85%)","label":1}}],"elements":[{"group":"nodes","data":{"id":"0"},"classes":["stock"]},{"group":"nodes","data":{"id":"1"},"classes":["stock"]},{"group":"nodes","data":{"id":"2"},"classes":["variable"]},{"group":"nodes","data":{"id":"3"},"classes":["variable"]},{"group":"nodes","data":{"id":"4"},"classes":["stock"]},{"group":"nodes","data":{"id":"5"},"classes":["variable"]},{"group":"nodes","data":{"id":"6"},"classes":["variable"]},{"group":"nodes","data":{"id":"7"},"classes":["variable"]},{"group":"nodes","data":{"id":"8"},"classes":["variable"]},{"group":"nodes","data":{"id":"9"},"classes":["constant"]},{"group":"nodes","data":{"id":"10"},"classes":["constant"]},{"group":"nodes","data":{"id":"11"},"classes":["constant"]},{"group":"edges","data":{"id":"12","source":"1","target":"2"},"classes":["influence"]},{"group":"edges","data":{"id":"13","source":"9","target":"2"},"classes":["influence"]},{"group":"edges","data":{"id":"14","source":"2","target":"3"},"classes":["influence"]},{"group":"edges","data":{"id":"15","source":"4","target":"5"},"classes":["influence"]},{"group":"edges","data":{"id":"16","source":"10","target":"5"},"classes":["influence"]},{"group":"edges","data":{"id":"17","source":"5","target":"6"},"classes":["influence"]},{"group":"edges","data":{"id":"18","source":"3","target":"7"},"classes":["influence"]},{"group":"edges","data":{"id":"19","source":"6","target":"7"},"classes":["influence"]},{"group":"edges","data":{"id":"20","source":"7","target":"8"},"classes":["influence"]},{"group":"edges","data":{"id":"21","source":"1","target":"8"},"classes":["influence"]},{"group":"edges","data":{"id":"22","source":"11","target":"8"},"classes":["influence"]},{"group":"edges","data":{"id":"f23","source":"1","target":"4","node":"8"},"classes":["flow-edge"]}]}
 
 const cy = cytoscape({
   container: document.getElementById('graph'),
@@ -51,14 +132,31 @@ const cy = cytoscape({
   autoungrabify: true,
   autounselectify: true,
   layout: {
-    name: 'grid',
-    nodeDimensionsIncludeLabels: true
+    name: 'fcose',
+
+    quality: "default",
+    nodeDimensionsIncludeLabels: true,
+
+    alignmentConstraint: {horizontal: [['1', '8', '4']]},
+    relativePlacementConstraint: [{left: '1', right: '8'}, {left: '8', right: '4'}]
+    // animate: false
   },
-  style: graphStyleStr,
+  style: graphStyle.concat(data.style),
   zoom: 1
 });
 
-cy.style(cy.style().json().concat(data.style));
+// position flow nodes
+/*for (const edge of cy.edges(".flow-edge")) {
+  const node = cy.nodes("#" + edge.data("node"));
+  console.log(node.json());
+  console.log(edge.json());
+  console.log(edge.midpoint())
+  node.position(edge.midpoint());
+}*/
+
+// add additional stylesheet
+//console.log(JSON.stringify(cy.style().json()));
+//cy.style(cy.style().json().concat(data.style));
 
 console.log(cy)
 
@@ -98,16 +196,27 @@ function buildVariable(id) {
   });
 }
 
-function buildFlow(id, source, target, bidirectional = false) {
-  return ({
+function buildFlowEdge(id, source, target, bidirectional = false) {
+  return {
     group: 'edges',
     data: {
-      id: id,
+      id: "f" + id,
       source: source,
-      target: target,
+      target: target
     },
-    classes: bidirectional ? ['flow', 'bidirectional'] : ['flow']
-  });
+    classes: bidirectional ? ['flow-edge', 'bidirectional'] : ['flow-edge']
+  };
+}
+
+function buildFlowNode(id) {
+  return {
+    group: 'nodes',
+    data: {
+      id: id,
+      edge: "f" + id
+    },
+    classes: ['flow-node']
+  };
 }
 
 function buildInfluence(id, source, target) {

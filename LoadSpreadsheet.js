@@ -5,7 +5,7 @@ _FYS6 = "https://docs.google.com/spreadsheets/d/1noIrdtO80akdLUh0PtfpiSZRHnK1Cqe
 _FYS7 = "https://docs.google.com/spreadsheets/d/1g0l5zXlH-KNlI2EZsqCJrIrFo9p56uLkRbn0NxxPMac/edit#gid=1150061696"
 _FYS8 = "https://docs.google.com/spreadsheets/d/1igyJpB-8rUI43PIKCvCXFCZLYpEifZrfXe9VtwRkgtQ/edit#gid=909277378"
 _FYS9 = "https://docs.google.com/spreadsheets/d/1W6NRB1WS0WVSo1esPXlIWOvjVO_XqkNdjTuLT6bXigk/edit#gid=485567316"
-
+N = 0
 const category = {
   VALUE: "VALUE", // explicit numeric/scalar value
   RELATION: "RELATION", // relative reference to relation
@@ -58,7 +58,7 @@ class Operand {
   }
 
   getDisplacement() {
-    return displacement;
+    return this.displacement;
   }
   getElement() {
     return this.element;
@@ -189,7 +189,7 @@ function getUIData(sheet = SpreadsheetApp.openByUrl(_FYS3).getSheets()[0]) {
   const ui = {
     style: buildStyle(model),
     elements: buildGraph(model)
-  }
+  };
 
   Logger.log(JSON.stringify(ui));
   
@@ -206,7 +206,7 @@ function buildStyle(m) {
         selector: "#" + param.getID(),
         style: {
           'background-color': colors[i],
-          'label': param.getRange().getA1Notation()
+          'label': findNames(param.getRange())
         }
       };
     }
@@ -226,45 +226,184 @@ function buildGraph(m) {
   const addConstant = (p) => v.push(buildConstant(p.getID()));
   const addVariable = (p) => v.push(buildVariable(p.getID()));
   const addInfluence = (pSrc, pDest) => e.push(buildInfluence(m.generateID(), pSrc.getID(), pDest.getID()));
-  const addFlow = (pSrc, pDest) => e.push(buildFlow(m.generateID(), pSrc.getID(), pDest.getID(), false));
+  const addFlowEdge = (idSrc, idDest, idNode, bidirectional = false) => e.push(buildFlowEdge("f" + m.generateID(), idSrc, idDest, idNode, bidirectional));
+  const addFlowNode = (id) => e.push(buildFlowNode(id));
+  const addCloud = () => {
+    const id = m.generateID();
+    e.push(buildCloud(id));
+    return id;
+  }
 
-  const createStockFlow = (p) => {
+  let Flow = class {
+    constructor(stockOut, stockIn, influences, operators) {
+      this.stockOut = stockOut;
+      this.stockIn = stockIn;
+      this.influences = influences;
+      this.operators = operators;
+    }
+
+    // Check if two flows come together to form a single flow between two stocks
+    isComplement(flow) {
+      return (
+        ((this.stockOut === null && flow.stockIn === null) ||
+        ((flow.stockOut === null && this.stockIn === null))) &&
+        equals(this.influences, flow.influences) &&
+        equals(this.operators, flow.operators)
+      );
+    }
+
+    getID() {
+      return this.id
+    }
+
+    add() {
+      const src = this.stockOut === null ? addCloud() : this.stockOut.getID();
+      const dest = this.stockIn === null ? addCloud() : this.stockIn.getID();
+      if (this.influences.length == 1) {
+        addFlowEdge(src, dest, this.influences[0].getID(), false);
+      } else {
+        const id = m.generateID();
+        addFlowNode(id);
+        addFlowEdge(src, dest, id, false);
+      }
+    }
+  };
+
+  let inflows = []; // list of class Flow instances
+  let outflows = [];
+
+  const addInfluences = (p) => {
+    // Iterate over elements of the equation
+    const it = p.getIterator();
+    let result = it.next();
+    while (!result.done) {
+      [operator, operand] = result.value; // get iterator values
+      if (operand !== undefined && operand !== null) {
+        let element = operand.getElement();
+
+        if (element.isRelation() || element.isConstant()) {
+          addInfluence(element, p);
+        }
+      }
+
+      result = it.next(); // continue iterating
+    }
+  }
+
+  const addFlows = (p) => {
+    let positives = []; // parameters with a positive influence on the formula
+    let negatives = []; // parameters with a negative influence on the formula
+    let opsPositive = [];
+    let opsNegative = [];
+
+    // Iterate over elements of the equation
+    const it = p.getIterator();
+    let result = it.next();
+
+    parenDepth = 0; // number of parentheses deep
+    
+    while (!result.done) {
+      const POS = true;
+      const NEG = false;
+
+      [operator, operand] = result.value; // get iterator values
+
+      let current = POS; // keeps track of + or - was last seen
+      let stack = []; // keeps track of positivity/negativity of each parenthetical level
+
+      if (operator == "(") {
+        stack.push(current);
+      } else if (operator == ")") {
+        current = stack.pop();
+      } else if (operator == "+") {
+        current = POS;
+      } else if (operator == "-") {
+        current = NEG;
+      }
+
+      if (operand !== undefined && operand !== null) {
+        let element = operand.getElement();
+
+        // skip stock basis
+        if (p.getID() == element.getID() && operand.getDisplacement() == 1) {
+          result = it.next();
+          continue;
+        }
+
+        // note whether element is positive or negative influence
+        if (current == POS) {
+          positives.push(element);
+          if (operator !== "+" && operator !== "-") {
+            opsPositive.push(operand);
+          }
+        } else {
+          negatives.push(element);
+          if (operator !== "+" && operator !== "-") {
+            opsNegative.push(operand);
+          }
+        }
+      }
+
+      result = it.next(); // continue iterating
+    }
+
+    if (positives.length >= 1) {
+      inflows.push(new Flow(null, p, positives, opsPositive));
+    }
+
+    if (negatives.length >= 1) {
+      outflows.push(new Flow(p, null, negatives, opsNegative));
+    }
   }
 
   // Build stock, constant, and variable nodes
   for (const p of m.getParameters()) {
     if (p.isRelation()) { // stock or variable
       if (p.isRecursive()) { // stock
+        // **NOTE: ADD ADDITIONAL CONDITION that min recursive depth is 1?
         // Add a stock node to the graph
         addStock(p);
+        addFlows(p);
       } else { // variable
         // Add a variable node to the graph
         addVariable(p);
-      }
-
-      // Iterate over elements of the equation
-      const it = p.getIterator();
-      let result = it.next();
-      while (!result.done) {
-        [operator, operand] = result.value; // get iterator values
-        if (operand !== undefined && operand !== null) {
-          let element = operand.getElement();
-
-          if (element.isRelation() || element.isConstant()) {
-            addInfluence(element, p);
-          }
-        }
-
-        result = it.next(); // continue iterating
+        addInfluences(p);
       }
     } else if (p.isConstant()) { // variable
       addConstant(p);
     }
   }
 
-  const g = v.concat(e);
+  // Flows between two stocks
+  let localFlows = [];
+  // Indices of inflows and outflows that have been combined into local flows
+  let iContributingInflows = [];
+  let iContributingOutflows = [];
 
-  return g;
+  // combine complementary flows together into stock-stock flow
+  for (let iIn = 0; iIn < inflows.length; iIn++) {
+    const inflow = inflows[iIn];
+    for (let iOut = 0; iOut < outflows.length; iOut++) {
+      const outflow = outflows[iOut];
+      if (inflow.isComplement(outflow)) {
+        // push combined flow
+        localFlows.push(new Flow(outflow.stockOut, inflow.stockIn, outflow.influences, outflow.operators));
+        iContributingInflows.push(iIn);
+        iContributingOutflows.push(iOut);
+      }
+    }
+  }
+
+  const flows = localFlows.concat(
+    inflows.filter((_, i) => !iContributingInflows.includes(i)),
+    outflows.filter((_, i) => !iContributingOutflows.includes(i))
+  );
+
+  for (const flow of flows) {
+    flow.add()
+  }
+
+  return v.concat(e);
 }
 
 function extractData(sheet) {
@@ -696,4 +835,9 @@ function reviver(key, value) {
     }
   }
   return value;
+}
+
+// https://www.30secondsofcode.org/blog/s/javascript-array-comparison
+function equals(a, b) {
+  return a.length === b.length && a.every((v, i) => v === b[i]);
 }
