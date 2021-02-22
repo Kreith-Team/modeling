@@ -186,9 +186,14 @@ function readSheet(ssid) {
 function getUIData(sheet = SpreadsheetApp.openByUrl(_FYS3).getSheets()[0]) {
   const model = extractData(sheet);
 
+  const style = buildStyle(model);
+  const [elements, alignmentConstraint, relativePlacementConstraint] = buildGraph(model);
+
   const ui = {
-    style: buildStyle(model),
-    elements: buildGraph(model)
+    style,
+    elements,
+    alignmentConstraint,
+    relativePlacementConstraint
   };
 
   Logger.log(JSON.stringify(ui));
@@ -202,11 +207,16 @@ function buildStyle(m) {
   return Array.from(
     m.getParameters(),
     (param, i) => {
+      let bg = param.getRange().getBackground();
+
       return {
-        selector: "#" + param.getID(),
+        selector: "." + param.getID(),
         style: {
-          'background-color': colors[i],
-          'label': findNames(param.getRange())
+          'background-color': bg == "#ffffff" ? colors[i] : bg,
+          'label': findNames(param.getRange()),
+          'line-color': bg == "#ffffff" ? colors[i] : bg,
+          'source-arrow-color': bg == "#ffffff" ? colors[i] : bg,
+          'target-arrow-color': bg == "#ffffff" ? colors[i] : bg
         }
       };
     }
@@ -218,15 +228,43 @@ function buildColorList(n) {
   return Array.from({length: n}, (_, i) => `hsl(${(i/n)*360}, 100%, 85%)`);
 }
 
+// Builds necessary non-style parameters for cytoscape graph
+// Return: [elements, alignmentConstraint, relativePlacementConstraint]
+// elements - List of elements to pass into graph initialziation
+// alignmentConstraint - Vertically aligned flows (pass into layout)
+// relativePlacementConstraint - Constraints that force correct placement of flow nodes (pass into layout)
 function buildGraph(m) {
-  let v = []; // nodes
-  let e = []; // edges
+  // class to scaffold Cytoscape graph building
+  const GraphCollection = class {
+    constructor() {
+      this.collection = new Map()
+    }
+    push(element) {
+      Logger.log("Pushing element " + element.data.id + " to map");
+      this.collection.set(element.data.id, element) 
+    }
+    get(id) {
+      return this.collection.get(id);
+    }
+    toArray() {
+      return Array.from(this.collection.values())
+    }
+  }
+
+  let v = new GraphCollection();
+  let e = new GraphCollection();
+  let alignmentConstraint = {horizontal: []};
+  let relativePlacementConstraint = [];
 
   const addStock = (p) => v.push(buildStock(p.getID()));
   const addConstant = (p) => v.push(buildConstant(p.getID()));
   const addVariable = (p) => v.push(buildVariable(p.getID()));
-  const addInfluence = (pSrc, pDest) => e.push(buildInfluence(m.generateID(), pSrc.getID(), pDest.getID()));
-  const addFlowEdge = (idSrc, idDest, idNode, bidirectional = false) => e.push(buildFlowEdge("f" + m.generateID(), idSrc, idDest, idNode, bidirectional));
+  const addInfluence = (idSrc, idDest) => e.push(buildInfluence(m.generateID(), idSrc, idDest));
+  const addFlowEdge = (idSrc, idDest, idNode, bidirectional = false) => {
+    const id = "f" + m.generateID()
+    e.push(buildFlowEdge(id, idSrc, idDest, idNode, bidirectional));
+    return id;
+  }
   const addFlowNode = (id) => e.push(buildFlowNode(id));
   const addCloud = () => {
     const id = m.generateID();
@@ -257,15 +295,34 @@ function buildGraph(m) {
     }
 
     add() {
+      // Build clouds if no source/dest specified
       const src = this.stockOut === null ? addCloud() : this.stockOut.getID();
       const dest = this.stockIn === null ? addCloud() : this.stockIn.getID();
-      if (this.influences.length == 1) {
-        addFlowEdge(src, dest, this.influences[0].getID(), false);
-      } else {
-        const id = m.generateID();
-        addFlowNode(id);
-        addFlowEdge(src, dest, id, false);
+      let idNode;
+      let idEdge;
+      if (this.influences.length == 1 && this.influences[0] instanceof Parameter) { // combined variable/flow
+        idNode = this.influences[0].getID()
+        Logger.log("XNODE: " + idNode);
+        idEdge = addFlowEdge(src, dest, idNode, false);
+        v.get(idNode).classes = ['flow-node'];
+      } else { // separate flow
+        Logger.log("here!!")
+        Logger.log(this.influences.length);
+        idNode = m.generateID();
+        addFlowNode(idNode);
+        idEdge = addFlowEdge(src, dest, idNode, false);
+
+        // add influences to flow node
+        for (const influence of this.influences) {
+          if (influence.isRelation() || influence.isConstant()) {
+            Logger.log("Dealing with influence " + influence.getID());
+            addInfluence(influence.getID(), idNode);
+          }
+        }
       }
+
+      alignmentConstraint.horizontal.push([src, idNode, dest]);
+      relativePlacementConstraint.push({left: src, right: idNode}, {left: idNode, right: dest});
     }
   };
 
@@ -282,7 +339,7 @@ function buildGraph(m) {
         let element = operand.getElement();
 
         if (element.isRelation() || element.isConstant()) {
-          addInfluence(element, p);
+          addInfluence(element.getID(), p.getID());
         }
       }
 
@@ -393,7 +450,8 @@ function buildGraph(m) {
       }
     }
   }
-
+  
+  // create list of all flows
   const flows = localFlows.concat(
     inflows.filter((_, i) => !iContributingInflows.includes(i)),
     outflows.filter((_, i) => !iContributingOutflows.includes(i))
@@ -403,7 +461,13 @@ function buildGraph(m) {
     flow.add()
   }
 
-  return v.concat(e);
+  let graph = v.toArray().concat(e.toArray());
+
+  return [
+    graph,
+    alignmentConstraint,
+    relativePlacementConstraint
+  ];
 }
 
 function extractData(sheet) {

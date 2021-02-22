@@ -6,7 +6,7 @@ _FYS7 = "https://docs.google.com/spreadsheets/d/1g0l5zXlH-KNlI2EZsqCJrIrFo9p56uL
 _FYS8 = "https://docs.google.com/spreadsheets/d/1igyJpB-8rUI43PIKCvCXFCZLYpEifZrfXe9VtwRkgtQ/edit#gid=909277378"
 _FYS9 = "https://docs.google.com/spreadsheets/d/1W6NRB1WS0WVSo1esPXlIWOvjVO_XqkNdjTuLT6bXigk/edit#gid=485567316"
 
-function findNames(range = SpreadsheetApp.openByUrl(_SHEET_URL).getRange("D18:F18")) {
+function findNames(range = SpreadsheetApp.openByUrl(_FYS3).getRange("D3")) {
   let colRange = false; //bool for if it is a column range
   let rowRange = false; //bool for if it is a row range
   let nameFound = false;//bool for when a name is found
@@ -32,7 +32,7 @@ function findNames(range = SpreadsheetApp.openByUrl(_SHEET_URL).getRange("D18:F1
       nameFound = true;
     }
   }
-  if(rowRange) {
+  else if(rowRange) {
     let startCol = range.getColumn();
     //checks how many times the range needs to be offsetted to find a name
     while(!isNaN(range.offset(0,-offsetRange,1,1).getValue()) && startCol - offsetRange > 1) {
@@ -58,11 +58,19 @@ function findNames(range = SpreadsheetApp.openByUrl(_SHEET_URL).getRange("D18:F1
   if(colRange) {
     range = range.offset(-offsetRange, 0, range.getNumRows() + offsetRange, range.getNumColumns());
   }
-  if(rowRange) {
+  else if(rowRange) {
     range = range.offset(0, -offsetRange, range.getNumRows(), range.getNumColumns() + offsetRange);
+  } else {
+    range = range.offset(0, -1);
+  }
+
+  // deal with merged ranges
+  if (range.isPartOfMerge()) {
+    Logger.log("is part of merge");
+    range = range.getMergedRanges()[0];
   }
   
-  rangeName = range.getValue();
+  rangeName = range.getValue().split("=")[0].trim();
   Logger.log("NAME: " + rangeName);
   Logger.log(range.getDisplayValues());
   return rangeName;
