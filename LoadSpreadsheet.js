@@ -202,25 +202,47 @@ function getUIData(sheet = SpreadsheetApp.openByUrl(_FYS3).getSheets()[0]) {
 }
 
 function buildStyle(m) {
-  const colors = buildColorList(m.numParameters());
+  let colorsDefault = buildColorList(m.numParameters());
 
-  return Array.from(
+  let colors = Array.from(
     m.getParameters(),
     (param, i) => {
       let bg = param.getRange().getBackground();
+      return bg == "#ffffff" ? colorsDefault[i] : bg;
+    }
+  );
 
+  let nodeStyles = Array.from(
+    m.getParameters(),
+    (param, i) => {
       return {
-        selector: "." + param.getID(),
+        selector: "#" + param.getID(),
         style: {
-          'background-color': bg == "#ffffff" ? colors[i] : bg,
+          'background-color': colors[i],
           'label': findNames(param.getRange()),
-          'line-color': bg == "#ffffff" ? colors[i] : bg,
-          'source-arrow-color': bg == "#ffffff" ? colors[i] : bg,
-          'target-arrow-color': bg == "#ffffff" ? colors[i] : bg
+          //'line-color': colors[i],
+          //'source-arrow-color': colors[i],
+          //'target-arrow-color': colors[i]
         }
       };
     }
   );
+
+  let influenceStyles = Array.from(
+    m.getParameters(),
+    (param, i) => {
+      return {
+        selector: /*".influence[source = \"" + param.getID() + "\"]" + ", " +*/ ".flow-edge[node=\"" + param.getID() + "\"]",
+        style: {
+          'line-color': colors[i],
+          'source-arrow-color': colors[i],
+          'target-arrow-color': colors[i]
+        }
+      };
+    }
+  );
+
+  return nodeStyles.concat(influenceStyles);
 }
 
 // returns a list of n evenly-distributed HSL-style color codes
@@ -253,7 +275,7 @@ function buildGraph(m) {
 
   let v = new GraphCollection();
   let e = new GraphCollection();
-  let alignmentConstraint = {horizontal: []};
+  let constraints = [];
   let relativePlacementConstraint = [];
 
   const addStock = (p) => v.push(buildStock(p.getID()));
@@ -262,7 +284,8 @@ function buildGraph(m) {
   const addInfluence = (idSrc, idDest) => e.push(buildInfluence(m.generateID(), idSrc, idDest));
   const addFlowEdge = (idSrc, idDest, idNode, bidirectional = false) => {
     const id = "f" + m.generateID()
-    e.push(buildFlowEdge(id, idSrc, idDest, idNode, bidirectional));
+    e.push(buildFlowEdge(id + "i", idSrc, idNode, idNode, true, bidirectional));
+    e.push(buildFlowEdge(id + "f", idNode, idDest, idNode, false, bidirectional));
     return id;
   }
   const addFlowNode = (id) => e.push(buildFlowNode(id));
@@ -299,18 +322,17 @@ function buildGraph(m) {
       const src = this.stockOut === null ? addCloud() : this.stockOut.getID();
       const dest = this.stockIn === null ? addCloud() : this.stockIn.getID();
       let idNode;
-      let idEdge;
       if (this.influences.length == 1 && this.influences[0] instanceof Parameter) { // combined variable/flow
         idNode = this.influences[0].getID()
         Logger.log("XNODE: " + idNode);
-        idEdge = addFlowEdge(src, dest, idNode, false);
+        addFlowEdge(src, dest, idNode, false);
         v.get(idNode).classes = ['flow-node'];
       } else { // separate flow
         Logger.log("here!!")
         Logger.log(this.influences.length);
         idNode = m.generateID();
         addFlowNode(idNode);
-        idEdge = addFlowEdge(src, dest, idNode, false);
+        addFlowEdge(src, dest, idNode, false);
 
         // add influences to flow node
         for (const influence of this.influences) {
@@ -321,8 +343,24 @@ function buildGraph(m) {
         }
       }
 
-      alignmentConstraint.horizontal.push([src, idNode, dest]);
-      relativePlacementConstraint.push({left: src, right: idNode}, {left: idNode, right: dest});
+      // Check if any elements already in array
+      let iConstraint = constraints.findIndex((ids) => ids.includes(src) || ids.includes(dest));
+
+      if (iConstraint != -1) {
+        let ids = constraints[iConstraint];
+        if (ids.includes(src)) {
+          ids.push(dest);
+        } else if (ids.includes(dest)) {
+          ids.push(src);
+        } else {
+          Logger.log("Something may have gone wrong with building constraints - tried to add IDs, but both were already constrained");
+        }
+      } else {
+        constraints.push([src, idNode, dest]);
+      }
+
+      // TODO: OPTIONAL - also skip if bidirectional
+      relativePlacementConstraint.push({left: src, right: dest});
     }
   };
 
@@ -465,7 +503,7 @@ function buildGraph(m) {
 
   return [
     graph,
-    alignmentConstraint,
+    {horizontal: constraints},
     relativePlacementConstraint
   ];
 }
